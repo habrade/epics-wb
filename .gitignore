@@ -1,0 +1,73 @@
+########################################################################
+## Git ignore files for C++ project
+##
+## License: LPGL v2.1
+## Authors: 
+##	- Benoit Rat (Seven Solutions, www.sevensols.com)
+##
+## GNU Lesser General Public License Usage
+## This file may be used under the terms of the GNU Lesser
+## General Public License version 2.1 as published by the Free Software
+## Foundation and appearing in the file LICENSE.LGPL included in the
+## packaging of this file.  Please review the following information to
+## ensure the GNU Lesser General Public License version 2.1 requirements
+## will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
+########################################################################
+
+# OS generated     #
+####################
+*.bak
+*.*\#
+\#*
+.\#*
+*.*~
+*.swp
+*.cache
+Thumbs.db
+0o.*.o0/
+
+# Compiled source #
+###################
+*.bit
+*.exe
+*.o
+*.a
+*.so
+*.wlf
+*.vstf
+*.vcd
+*.pyc
+
+# Binaries Files  #
+###################
+*.zip
+*.rar
+*.tar.gz
+*.bin
+
+
+# Eclipse         #
+###################
+.library_mapping.xml
+.project
+.cproject
+.settings/*
+
+# Project specific #
+####################
+O.*/
+configure/
+doc/html
+doc/latex
+doc/man
+
+
+
+
+
+
+
+
+
+
+
