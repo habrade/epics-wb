@@ -50,6 +50,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <cfloat>
 
 //! Generate field preprocessor variable name for wbgen2 header
 #define WB2_TOKENPASTING_FIELD(periphname,regname,fieldname,type) \
@@ -70,17 +71,18 @@
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_MASK),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_SHIFT),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_ACCESS),\
-		WB2_TOKENPASTING_FIELD(pname,rname,fname,_NBFP),\
-		WB2_TOKENPASTING_FIELD(pname,rname,fname,_DESC)
+		WB2_TOKENPASTING_FIELD(pname,rname,fname,_DESC), \
+		(WB2_TOKENPASTING_FIELD(pname,rname,fname,_NBFP)==0)?0:2,\
+		WB2_TOKENPASTING_FIELD(pname,rname,fname,_NBFP)
 
 //! Shortcut for WBField constructor arguments
-#define WB2_FIELD_ARGS_NBFP(pname,rname,fname,nfb) \
+#define WB2_FIELD_ARGS_VA(pname,rname,fname,...) \
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_PREFIX),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_MASK),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_SHIFT),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_ACCESS),\
-		nfb,\
-		WB2_TOKENPASTING_FIELD(pname,rname,fname,_DESC)
+		WB2_TOKENPASTING_FIELD(pname,rname,fname,_DESC),\
+		__VA_ARGS__
 
 
 class WBField;
@@ -89,7 +91,7 @@ class WBNode;
 class WBMemCon;
 
 //! Access mode for a WB Register or Field
-enum WBAccMode {  WB_AM_R=0x01, WB_AM_W=0x10, WB_AM_RW=0x11 };
+enum WBAccMode {  WB_AM_R=0x1, WB_AM_W=0x2, WB_AM_RW=0x3 };
 
 #define WB_NODE_MEMBCK_OWNADDR 0xFFFFFFFF //!< Used by WBNode::sync()
 
@@ -101,22 +103,39 @@ enum WBAccMode {  WB_AM_R=0x01, WB_AM_W=0x10, WB_AM_RW=0x11 };
  * We use a mask to show which bits correspond to this WBField in
  * the linked WBReg.
  *
+ * \todo Verify the all the combination of regCvt() according to type !!!
+ *
  * \ref WBReg
  */
 class WBField
 {
 public:
+	//! Type Mask for WBField type
+	enum TMask {
+		WBF_TM_SIGN_MSB		= 0x1,
+		WBF_TM_SIGN_2COMP	= 0x2,
+		WBF_TM_SIGNESS		= 0x3,
+		WBF_TM_FIXED_POINT	= 0x4,
+	};
 	//! Type of WBField available
 	enum Type {
-		WBF_32U,	//!< Unsigned integer field
-		WBF_32I,	//!< Signed integer field
-		WBF_32FP,	//!< Fixed point field with highest bit signed
-		WBF_32F2C 	//!< Fixed point field with 2'complements signed
+		//! Automatic Type
+		WBF_AUTO=0xFF,
+		//! Unsigned integer field
+		WBF_32U=0,
+		//! Signed integer field
+		WBF_32I=1,
+		//! Fixed point field with highest bit signed
+		WBF_32FP = (WBF_TM_FIXED_POINT | WBF_TM_SIGN_MSB),
+		//! Fixed point field with 2'complements signed
+		WBF_32F2C =(WBF_TM_FIXED_POINT | WBF_TM_SIGN_2COMP)
 	};
 	friend std::ostream & operator<<(std::ostream & output, const WBField &n);
 
+	WBField(WBReg *pReg,const std::string &name, uint32_t mask, uint8_t shift,
+			uint8_t mode=WB_AM_RW, const std::string &desc="",
+			uint8_t signess=0, uint8_t nfb=0, double defVal=(1.0/0.0));
 
-	WBField(WBReg *pReg,const std::string &name, uint32_t mask, uint8_t shift, uint8_t mode=WB_AM_RW, uint8_t nfb=0,const std::string &desc="");
 	virtual ~WBField();
 
 	bool regCvt(uint32_t *value, uint32_t *regdata, bool from_data) const;

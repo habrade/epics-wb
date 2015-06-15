@@ -47,39 +47,49 @@ std::string string_format(const std::string &fmt, ...) {
  * If pReg is valid it will automatically append this WBField to a WBReg only if
  * the bit mask of WBField is not already used in WBReg.
  *
- * \todo 	WBField::WBF_32I annd WBField::WBF_32FP are not taken into account
- *
  * \param[in] pReg Belonging WBReg
  * \param[in] name Name of the field
  * \param[in] mask Bit mask of the field on the register
  * \param[in] shift how many bit we need to shift
  * \param[in] mode The access mode to the register given by \ref WBAccMode
- * \param[in] nfb Number of fractional bit, when 0 we create a WBField::WBF_32U type,
- *  	otherwise it will be WBField::WBF_32F2C type.
  * \param[in] desc Optional description
+ * \param[in] signess Which type of signess we want to use WBField::TMask
+ * \param[in] nfb Number of fractional bit.
+ * \param[in] iniVal Value to setup field at creation,
+ * if set to "inf" we keep 0 as default value. Does nothing when pReg is NULL.
  */
 WBField::WBField(WBReg *pReg,
 		const std::string &name, uint32_t mask,
-		uint8_t shift, uint8_t mode, uint8_t nfb,
-		const std::string &desc)
+		uint8_t shift, uint8_t mode, const std::string &desc,
+		uint8_t signess, uint8_t nfb, double iniVal)
 {
 	this->pReg=pReg;
 	this->name=name;
 	this->mask=mask;
 	this->shift=shift;
 	this->mode=mode;
-	if(nfb==0)this->type=WBF_32U;
-	else this->type=WBF_32F2C;
+	this->type=(signess & WBF_TM_SIGNESS);
+	if(nfb>0) this->type|=WBF_TM_FIXED_POINT;
 	this->nfb=nfb;
 	this->desc=desc;
 	this->checkOverflow=true;
 
+	TRACE_P_DEBUG("%s type=0x%0x nfb=%d, dVal=%f",name.c_str(),type,nfb,iniVal);
 	int i = 1;
 	for (; mask; mask >>= 1, i++)
-	this->width=i-shift;
+		this->width=i-shift;
 
 
-	if(pReg) pReg->addField(this);
+	if(pReg)
+	{
+		if(isinf(iniVal)) pReg->addField(this);
+		else
+		{
+			float dVal32=(float)iniVal;
+			this->convert(&dVal32,false);
+			pReg->addField(this,true);
+		}
+	}
 }
 
 /**
@@ -154,7 +164,8 @@ bool WBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;
-	case WBF_32FP: //Signed Fixed point conversion
+	case WBF_TM_FIXED_POINT: //Unsigned Fixed point conversion
+	case WBF_32FP: 			//Signed Fixed point conversion
 		if(to_value)
 		{
 			ret=this->regCvt(&fixed,reg_data,to_value);
