@@ -146,6 +146,9 @@ public:
 
 	float getFloat() const;
 	uint32_t getU32() const;
+	bool setToSync();
+
+	void setForceSync(bool val=true) { this->forceSync=val; };
 
 	bool sync(WBMemCon *con, WBAccMode amode=WB_AM_RW);
 
@@ -169,6 +172,7 @@ protected:
 	uint8_t type;		//!< Type of data
 	uint8_t nfb;		//!< Number of fraction bits
 	std::string desc;	//!< Description
+	bool forceSync;		//!< Force sync even if we the same value
 	bool checkOverflow;	//!< Limit overflow during FP conversion
 
 private:
@@ -193,7 +197,7 @@ public:
 	uint32_t getOffset(bool absolute=false) const;
 	bool sync(WBMemCon *con, WBAccMode amode=WB_AM_RW);
 
-	bool addField(WBField *fld);
+	bool addField(WBField *fld, bool toSyncInit=false);
 	const WBField* getField(const std::string& name) const;
 	const WBField* operator[](const std::string& name) const { return this->getField(name); }
 
@@ -201,6 +205,8 @@ public:
 	const std::vector<WBField*> getFields() const { return fields; }	//!< Get a vector on the belonging WBField
 	const WBNode* getPrtNode() const { return pPrtNode; }				//!< Get the parent WBNode
 
+	void 	setToSync() { toSync=true; }						//!< Set this register to be sync ASAP
+	bool 	isToSync() const { return toSync; }					//!< Check if the register need to be sync ASAP
 	uint32_t getData() const { return data; }					//!< Get the data
 	const std::string& getName() const { return this->name; }	//!< Get the name
 	const char *getCName() const { return this->name.c_str(); }	//!< Get the name in "C" format for printf function
@@ -213,6 +219,7 @@ protected:
 	uint32_t offset;		//!< The offset relative to WBNode
 	uint32_t data;			//!< The corresponding data
 	uint32_t used_mask;		//!< The mask used by other WBField
+	bool toSync;			//!< Boolean that tell if this register need to be sync ASAP
 
 private:
 	WBNode *pPrtNode;
@@ -241,6 +248,7 @@ public:
 
 	bool sync(WBMemCon *con, WBAccMode amode=WB_AM_RW);
 	bool sync(WBMemCon *con, WBAccMode amode, uint32_t dma_dev_offset=WB_NODE_MEMBCK_OWNADDR);
+	bool sync(uint32_t* pData32, uint32_t length, WBAccMode amode, uint32_t doffset=0);
 
 	int getID() const { return this->ID; }						//!< Get unique ID of WBNode
 	uint32_t getAddress() const { return this->address; }		//!< Get Address of WBnode

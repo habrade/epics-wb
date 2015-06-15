@@ -72,6 +72,7 @@ WBField::WBField(WBReg *pReg,
 	if(nfb>0) this->type|=WBF_TM_FIXED_POINT;
 	this->nfb=nfb;
 	this->desc=desc;
+	this->forceSync=false;
 	this->checkOverflow=true;
 
 	TRACE_P_DEBUG("%s type=0x%0x nfb=%d, dVal=%f",name.c_str(),type,nfb,iniVal);
@@ -242,6 +243,21 @@ bool WBField::convert(float *pVal, bool to_value)
 {
 	return (pReg)?regCvt(pVal,&(pReg->data),to_value):false;
 }
+/**
+ * Shortcut to setup the register to be sync with the device ASAP.
+ *
+ * \note Once the corresponding register flag toSync is true it is not possible to reset
+ * it unless calling to WBReg::sync() method. Calling to WBField::sync() will not reset this
+ * flag.
+ *
+ * \return true if everything okay. otherwirse false if pointer on register is unvalid.
+ */
+bool WBField::setToSync()
+{
+	TRACE_CHECK_PTR(pReg,false);
+	pReg->toSync=true;
+	return true;
+}
 
 /**
  * Shortcut function to return a float from the data in the field
@@ -281,7 +297,7 @@ uint32_t WBField::getU32() const
 bool WBField::sync(WBMemCon *con, WBAccMode amode)
 {
 	bool ret=true;
-	uint32_t value;
+	uint32_t oldval, value;
 
 	//Perform some check
 	if(pReg==NULL) return false;
@@ -291,12 +307,14 @@ bool WBField::sync(WBMemCon *con, WBAccMode amode)
 	if(amode & WB_AM_W)
 	{
 		//Get current value
-		ret &=con->mem_access(pReg->getOffset(true),&value,false); //Read WB from dev
-		TRACE_P_DEBUG("ret=%d value=%0x",ret,value);
-		value=(pReg->data & mask) | (value & ~mask); //Update only our field
-		TRACE_P_DEBUG("ret=%d value=%0x",ret,value);
-		ret &=con->mem_access(pReg->getOffset(true),&value,true); //Write WB to dev
-		TRACE_P_DEBUG("ret=%d value=%0x",ret,value);
+		ret &=con->mem_access(pReg->getOffset(true),&oldval,false); //Read WB from dev
+		value=(pReg->data & mask) | (oldval & ~mask); //Update only our field
+		TRACE_P_DEBUG("%-10s (@0x%08X) ret=%d old=0x%x new=0x%x",getCName(),pReg->getOffset(true),ret,oldval,value);
+		if(oldval != value || forceSync)
+		{
+			ret &=con->mem_access(pReg->getOffset(true),&value,true); //Write WB to dev
+			TRACE_P_DEBUG("%-10s (@0x%08X) ret=%d value=0x%0x",getCName(),pReg->getOffset(true),ret,value);
+		}
 	}
 	//then read from dev
 	if(amode & WB_AM_R)
@@ -340,6 +358,7 @@ WBReg::WBReg(WBNode *pPrtNode,const std::string &name, uint32_t offset, const st
 	this->offset=offset;
 	this->used_mask=0;
 	this->data=0;
+	this->toSync=false;
 
 	pPrtNode->appendReg(this);
 
@@ -367,9 +386,10 @@ WBReg::~WBReg()
  *
  *
  * \param[in] fld A pointer
+ * \param[in] toSyncInit Tell if this field need to be sync at initialization
  * \return true if it was possible to add it, false otherwise.
  */
-bool WBReg::addField(WBField *fld)
+bool WBReg::addField(WBField *fld, bool toSyncInit)
 {
 	const WBReg* fld_reg=fld->getReg();
 	if(fld==NULL || fld_reg==NULL || this!=fld_reg)
@@ -390,6 +410,7 @@ bool WBReg::addField(WBField *fld)
 
 	//append field mask to used mask of the whole register
 	used_mask|=fld->getMask();
+	this->toSync|=toSyncInit;
 
 	return true;
 }
@@ -411,6 +432,8 @@ const WBField* WBReg::getField(const std::string& name) const
 /**
  * Synchronize the 32bits of the WBReg
  *
+ * \note This method is also the only way to reset the toSync flag
+ *
  * \param[in] con A pointer to a valid Memory Connector object.
  * \param[in] amode Access mode (R, W, R/W)
  * \return true if everything is okay, false otherwise
@@ -430,6 +453,7 @@ bool WBReg::sync(WBMemCon* con, WBAccMode amode)
 	{
 		ret &= con->mem_access(this->getOffset(true),&data,false); //Read WB from dev
 	}
+	if(toSync) toSync=(ret==false); //Keep trying to sync if return was false
 	return ret;
 }
 
@@ -659,6 +683,78 @@ bool WBNode::sync(WBMemCon* con, WBAccMode amode, uint32_t dma_dev_offset)
 			TRACE_P_VDEBUG("%20s @0x%08X (%02d) <= 0x%x",((*ii).second)->getCName(),
 					((*ii).second)->getOffset(true),(*ii).first/sizeof(uint32_t),
 					((*ii).second)->getData());
+		}
+
+	}
+	return ret;
+}
+/**
+ * Sync WBNode using internal memory
+ *
+ * This method is similar as WBNode::sync(WBMemCon,WBAccMode,uint32_t) method
+ * except that here have direct access to the internal/kernel buffer that is going
+ * to be used with the WBMemCon.
+ *
+ * If we want to partially sync the memory with our WBNode this is the method
+ * to use. For example if we want to read only the the words (32bits) 0x10 to 0x16
+ * from the internal buffer to our WBNode we should perform the following:
+ *
+ * <code>
+ * uint32_t *pData32, r_bsize;
+ * //First setup the internal buffer from the device
+ * pCon->mem_block_access(pNode->getAddress(),pNode->getLastReg()->getOffset()/sizeof(uint32_t),false);
+ * r_bsize=pCon->get_block_buffer(&pData32,false);
+ * //Then read from the internal buffer to the WBNode only words [0x10-0x16]
+ * pNode->sync(pData32,0x6,WB_AM_R,0x10);
+ * </code>
+ *
+ * \param[in] pData32  Pointer on an internal buffer.
+ * \param[in] bsize    Size of the buffer that we want to R/W in bytes
+ * \param[in] amode    The operation mode (R,W,RW)
+ * \param[in] doffset  Offset on the data buffer and its correspondence in registers of WBNode (bytes).
+ * \return true if everything ok, false otherwise.
+ *
+ */
+bool WBNode::sync(uint32_t* pData32, uint32_t bsize, WBAccMode amode,  uint32_t doffset)
+{
+	bool ret=true;
+	uint32_t prh_bsize;
+	TRACE_CHECK_PTR(pData32,false);
+
+	//Check if the latest register has the latest size.
+	prh_bsize=getLastReg()->getOffset()+4;
+	bsize=std::min(prh_bsize-doffset,bsize);
+	TRACE_CHECK_VA((doffset+4)<=prh_bsize,false,
+			"Size overflow: offset=%d+4 > prh_bsize=%d",
+			doffset,prh_bsize);
+
+	TRACE_P_DEBUG("%s 0x%08X + [0x%x,0x%X] (DataBuff)",getCName(),(uint32_t)pData32,doffset,doffset+bsize);
+
+	//first write to buffer
+	if(amode & WB_AM_W)
+	{
+		//Fill it with the data of all registers
+		for(std::map<uint32_t,WBReg*>::iterator ii=registers.begin(); ii!=registers.end(); ++ii)
+		{
+			if(doffset <= (*ii).first && (*ii).first <= doffset+bsize)
+				pData32[(*ii).first/sizeof(uint32_t)]=((*ii).second)->getData();
+		}
+	}
+
+	//then read from buffer
+	if(amode & WB_AM_R)
+	{
+
+		//Extract each value to the corresponding register
+		for(std::map<uint32_t,WBReg*>::iterator ii=registers.begin(); ii!=registers.end(); ++ii)
+		{
+			if(doffset <= (*ii).first && (*ii).first <= doffset+bsize)
+			{
+				((*ii).second)->data=pData32[(*ii).first/sizeof(uint32_t)];
+				TRACE_P_VDEBUG("%20s @0x%08X (%02d) <= 0x%x",((*ii).second)->getCName(),
+						((*ii).second)->getOffset(true),(*ii).first/sizeof(uint32_t),
+						((*ii).second)->getData());
+			}
 		}
 
 	}

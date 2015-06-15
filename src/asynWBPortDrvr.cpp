@@ -46,15 +46,20 @@ asynWBPortDrvr::asynWBPortDrvr(const char *portName,int max_nprm)
 		1, /* Autoconnect */
 		0, /* Default priority */
 		0), /* Default stack size*/
-pMemCon(NULL), driverName(portName)
+		pRoot(NULL), pMemCon(NULL), driverName(portName)
 {
-	this->pRoot=NULL;
+
 
 	//Reserve our space for param list
 	AsynWBField afld;
 	afld.pFld=NULL;
 	afld.syncmode=AWB_SYNC_DERIVED; //when not define we derive
 	fldPrms = std::vector<AsynWBField>(max_nprm,afld);
+
+	//Create the only generic parameters to block sync or not (0: NoneBlock, 1:BlockRead, 2:BlockWrite, 3: All block)
+	createParam("AWBPD_BlockSync", asynParamInt32,&P_BlkSyncIdx);
+	setIntegerParam(P_BlkSyncIdx,0);
+	syncNow=WB_AM_RW;
 }
 
 /**
@@ -72,6 +77,56 @@ asynWBPortDrvr::~asynWBPortDrvr()
 
 	if(pRoot) delete pRoot;
 	pRoot=NULL;
+}
+
+/**
+ * Synchronize parameters that have been setup internally but not sync to the peripheral
+ *
+ * This is use in two case:
+ * 		- At initialization, when a WBField has been set with a non default value (see constructor)
+ * 		 we need to send this parameters to our device so that it takes this value at the beginning of
+ * 		 execution.
+ * 		 - When we want to block all the parameters so that
+ *
+ * \param[in] amode Access mode (R, W, R/W)
+ * \return Returns a asynSuccess if everything is okay.
+ */
+asynStatus asynWBPortDrvr::syncPending(WBAccMode amode)
+{
+	WBField* fld;
+	WBReg *reg=NULL;
+	AsynStatusObj status = asynSuccess;
+
+	//First find which fldParams needs to be sync
+	std::vector<int> tmpList;
+	for(int i=0;i<fldPrms.size();i++)
+	{
+		fld=fldPrms[i].pFld;
+		if(fld && fld->getReg() && fld->getReg()->isToSync())
+		{
+			tmpList.push_back(i);
+		}
+	}
+	//Then obtain the registers of these field params
+	for(int i=0;i<tmpList.size();i++)
+	{
+		fld=fldPrms[tmpList[i]].pFld;
+		reg=(WBReg*)fld->getReg();
+		//Sync them
+		if(reg->isToSync())
+		{
+			TRACE_P_DEBUG("Syncing Reg>: %s (@0x%08X) 0x%08x",
+					reg->getCName(),reg->getOffset(true),reg->getData());
+			status&=reg->sync(pMemCon,amode);
+			//Finally update the
+		}
+		if(fld->getType() && WBField::WBF_TM_FIXED_POINT)
+			setDoubleParam(tmpList[i],fld->getFloat());
+		else
+			setIntegerParam(tmpList[i],fld->getU32());
+	}
+
+	return status;
 }
 
 /**
@@ -151,6 +206,19 @@ asynStatus asynWBPortDrvr::createParam(const char* name, WBField* fld,int *pInde
 	return status;
 }
 
+/**
+ * Create parameters for internal use of the IOC
+ *
+ * This parameters will not be synchronized with our device. This function override the standard
+ * asynPortDriver::createParam(), and only add the syncmode to AWB_SYNC_PRMLIST or AWB_SYNC_DERIVED
+ *
+ * \param[in] name The name of this parameter
+ * \param[in] type  The type of parameters A WBField that is going to be link with the parameter
+ * \param[in] syncmode Select in which mode we want to sync. As we don't communicate with the device we can not set AWB_SYNC_DEVICE or AWB_SYNC_WBSTRUCT
+ * \return Returns a asynSuccess if everything is okay. Otherwise asynParamAlreadyExists if the parameter already exists, or asynBadParamIndex if
+ * adding this parameter would exceed the size of the parameter list and asynError is the syncmode is not valid.
+ * \see AsynWBSync for the type of synchronization
+ */
 asynStatus asynWBPortDrvr::createParam(const char* name, asynParamType type,int *pIndex,int syncmode)
 {
 	int tmp;
@@ -209,7 +277,7 @@ asynStatus asynWBPortDrvr::readInt32(asynUser* pasynUser, epicsInt32* value)
 
 	// Fetch the parameter string name for possible use in debugging
 	getParamName(function, &paramName);
-	TRACE_P_DEBUG("#%02d %s",function,paramName);
+	TRACE_P_VDEBUG("#%02d %s",function,paramName);
 
 	//Derived if need
 	if(aWF.syncmode==AWB_SYNC_DERIVED) return asynDisabled;
@@ -222,7 +290,7 @@ asynStatus asynWBPortDrvr::readInt32(asynUser* pasynUser, epicsInt32* value)
 		TRACE_CHECK_PTR(aWF.pFld->getReg(),asynError);
 
 		//Sync from device memory
-		if(aWF.syncmode==AWB_SYNC_DEVICE)
+		if(aWF.syncmode==AWB_SYNC_DEVICE && (syncNow & WB_AM_R))
 			aWF.pFld->sync(pMemCon,WB_AM_R);
 
 		//Convert the WBField to a float
@@ -282,7 +350,7 @@ asynStatus asynWBPortDrvr::readFloat64(asynUser* pasynUser,
 
 	// Fetch the parameter string name for possible use in debugging
 	getParamName(function, &paramName);
-	TRACE_P_DEBUG("#%02d %s",function,paramName);
+	TRACE_P_VDEBUG("#%02d %s",function,paramName);
 
 	//Derived if need
 	if(aWF.syncmode==AWB_SYNC_DERIVED) return asynDisabled;
@@ -295,7 +363,7 @@ asynStatus asynWBPortDrvr::readFloat64(asynUser* pasynUser,
 		TRACE_CHECK_PTR(aWF.pFld->getReg(),asynError);
 
 		//Sync WBField using the connector from device memory
-		if(aWF.syncmode==AWB_SYNC_DEVICE)
+		if(aWF.syncmode==AWB_SYNC_DEVICE && (syncNow & WB_AM_R))
 			aWF.pFld->sync(pMemCon,WB_AM_R);
 
 		//Convert the WBField to a float
@@ -352,7 +420,7 @@ asynStatus asynWBPortDrvr::writeInt32(asynUser* pasynUser, epicsInt32 value)
 
 	// Fetch the parameter string name for possible use in debugging
 	getParamName(function, &paramName);
-	TRACE_P_VDEBUG("#%02d %s=> %d (sync=%d)",function,paramName,value,aWF.syncmode);
+	TRACE_P_DEBUG("#%02d %s=> %d (sync=%d)",function,paramName,value,aWF.syncmode);
 
 	if(aWF.syncmode==AWB_SYNC_DERIVED) return asynDisabled;
 
@@ -374,17 +442,32 @@ asynStatus asynWBPortDrvr::writeInt32(asynUser* pasynUser, epicsInt32 value)
 				aWF.pFld->getReg()->getData());
 
 		//Finally sync WBField using the connector to memory
-		ret=aWF.pFld->sync(pMemCon,WB_AM_W);
-		if(ret==false) return asynError;
+		if(syncNow & WB_AM_W)
+		{
+			ret=aWF.pFld->sync(pMemCon,WB_AM_W);
+			if(ret==false) return asynError;
+		}
+		else aWF.pFld->setToSync();
 
 		TRACE_P_VVDEBUG("===>>>>>>>>>>>>>>@0x%08X %s.%s : %08x",
 				aWF.pFld->getReg()->getOffset(true),
 				aWF.pFld->getReg()->getCName(),aWF.pFld->getCName(),
 				aWF.pFld->getReg()->getData());
 	}
+	else if(function==P_BlkSyncIdx)
+	{
+		//When setting back to zeros we need to sync pending registers
+		WBAccMode syncMode=(WBAccMode)((~value) & WB_AM_RW); //syncMode is the inverse of block value
+		if(value==0 && syncNow!=WB_AM_RW) status = this->syncPending(syncMode);
+		TRACE_P_INFO("Syncing Mode: Old=%s%s (%d) => New=%s%s (%d) ... block value=%d",
+				(syncNow&WB_AM_R)?"R":"", (syncNow& WB_AM_W)?"W":"", syncNow,
+						(syncMode&WB_AM_R)?"R":"", (syncMode& WB_AM_W)?"W":"",syncMode,value);
+		syncNow=syncMode;
+	}
 
 	// Set the parameter in the parameter library
-	status = (asynStatus) setIntegerParam(function, value);
+	if((syncNow & WB_AM_W) || aWF.syncmode!=AWB_SYNC_DEVICE)
+		status = (asynStatus) setIntegerParam(function, value);
 
 
 	//Do callbacks so higher layers see any changes
@@ -440,12 +523,21 @@ asynStatus asynWBPortDrvr::writeFloat64(asynUser* pasynUser,
 		aWF.pFld->convert(&f32val,false);
 
 		//Finally sync WBField using the connector to memory
-		ret=aWF.pFld->sync(pMemCon,WB_AM_W);
-		if(ret==false) return asynError;
+		if(syncNow & WB_AM_W)
+		{
+			ret=aWF.pFld->sync(pMemCon,WB_AM_W);
+			if(ret==false) return asynError;
+		}
+		else aWF.pFld->setToSync();
+
+		//And readback from value
+		aWF.pFld->convert(&f32val,true);
+		value=f32val;
 	}
 
 	// Set the parameter in the parameter library
-	status = (asynStatus) setDoubleParam(function, value);
+	if((syncNow & WB_AM_W) || aWF.syncmode!=AWB_SYNC_DEVICE)
+		status = (asynStatus) setDoubleParam(function, value);
 
 	//Do callbacks so higher layers see any changes
 	status = (asynStatus) callParamCallbacks();
@@ -490,7 +582,7 @@ asynStatus asynWBPortDrvr::writeOctet(asynUser *pasynUser, const char *value, si
 	//Write to the device
 	if(aWF.syncmode==AWB_SYNC_DEVICE)
 	{
-		TRACE_P_WARNING("Writing String to device is not implemented");
+		TRACE_P_WARNING("Writing String to device is not yet implemented");
 		return asynError;
 	}
 
@@ -515,7 +607,7 @@ asynStatus asynWBPortDrvr::writeOctet(asynUser *pasynUser, const char *value, si
  * \param[out] eomReaseon ???
  */
 asynStatus asynWBPortDrvr::readOctet(asynUser *pasynUser, char *value, size_t maxChars,
-                                      size_t *nActual, int *eomReason)
+		size_t *nActual, int *eomReason)
 {
 	int function = pasynUser->reason;
 	asynStatus status = asynSuccess;
@@ -531,7 +623,7 @@ asynStatus asynWBPortDrvr::readOctet(asynUser *pasynUser, char *value, size_t ma
 	//Write to the device
 	if(aWF.syncmode==AWB_SYNC_DEVICE)
 	{
-		TRACE_P_WARNING("Writing String to device is not implemented");
+		TRACE_P_WARNING("Reading String to device is not yet implemented");
 		return asynError;
 	}
 

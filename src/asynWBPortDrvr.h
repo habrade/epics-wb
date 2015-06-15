@@ -81,6 +81,7 @@ public:
     bool isValid() { return pRoot!=NULL; } //!< return true if the child class has been properly setup()
 
 protected:
+    asynStatus syncPending(WBAccMode amode=WB_AM_RW);
     asynStatus createParam(WBField *fld, int *index=NULL,int syncmode=AWB_SYNC_DEVICE);
     asynStatus createParam(const char *name, WBField *fld, int *index=NULL, int syncmode=AWB_SYNC_DEVICE);
     asynStatus createParam(const char *name, asynParamType type,int *index=NULL,int syncmode=AWB_SYNC_PRMLIST);
@@ -90,9 +91,10 @@ protected:
     WBNode *pRoot;			//!< pointer on the WB tree structure.
     WBMemCon* pMemCon;		//!< generic pointer on the memory connector.
 
-private:
     std::vector<AsynWBField> fldPrms;
+private:
     std::string driverName;
+    int P_BlkSyncIdx, syncNow;
 };
 
 #endif
