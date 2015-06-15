@@ -19,7 +19,10 @@
 #include "WBNode.h"
 
 #ifndef _WDC_LIB_H_
-typedef void *WDC_DEVICE_HANDLE; //!< Hack to not include all the X1052 api in this header
+typedef void * WDC_DEVICE_HANDLE; //!< Hack to not include all the X1052 api in this header
+#endif
+#ifndef _X1052_LIB_H_
+typedef void * X1052_BIDMA_HANDLE; //!< Hack to not include all the X1052 api in this header
 #endif
 
 /**
@@ -34,7 +37,7 @@ typedef void *WDC_DEVICE_HANDLE; //!< Hack to not include all the X1052 api in t
  */
 class WBMemX1052Con: public WBMemCon {
 public:
-	WBMemX1052Con(uint32_t idPCIe,uint32_t magic_addr=0xFFFFFFFF, uint32_t magic_val=-1);
+	WBMemX1052Con(int idPCIe,uint32_t magic_addr=0xFFFFFFFF, uint32_t magic_val=-1);
 	virtual ~WBMemX1052Con();
 
 	bool isValid();
@@ -45,6 +48,9 @@ public:
 
 private:
     WDC_DEVICE_HANDLE hDev;
+    X1052_BIDMA_HANDLE hBiDma;
+
+    static int nHandles;
 };
 
 #endif /* WBMEMX1052CON_H_ */
