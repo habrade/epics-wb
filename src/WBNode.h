@@ -156,7 +156,8 @@ public:
 	uint8_t getNOfFractionBit() const { return nfb; }		//!< Get the number of fractional bit (0 for WBF_32U)
 	uint8_t getAccessMode() const { return mode; }			//!< Get the mode of access
 	uint8_t getType() const { return type; }				//!< Get the type of field
-	const WBReg* getReg() const { return pReg; }			//!< Get the linked register
+	const WBReg* getReg() const { return pReg; }			//!< Get the linked register (RO)
+	WBReg* getReg() { return pReg; }						//!< Get the linked register
 	bool isOverflowPrevented() const { return checkOverflow; }	//!< When true prevent overflow during FP conversion \ref regCvt(), \ ref convert()
 
 protected:
@@ -196,6 +197,7 @@ public:
 	const WBField* getField(const std::string& name) const;
 	const WBField* operator[](const std::string& name) const { return this->getField(name); }
 
+	std::vector<WBField*> getFields() { return fields; }
 	const std::vector<WBField*> getFields() const { return fields; }	//!< Get a vector on the belonging WBField
 	const WBNode* getPrtNode() const { return pPrtNode; }				//!< Get the parent WBNode
 
@@ -268,11 +270,11 @@ private:
 
 
 /**
- * Virtual class to connect to a device memory in order to sync the WBnode structure.
+ * Polymorphic & abstract class to connect to a device memory in order to sync the WBnode structure.
  *
- * The child class:
- * 		- must redefine single access to the memory
- * 		- might redefine DMA access to the memory
+ * The inherited class:
+ * 		- must overload single access to the memory
+ * 		- might overload DMA access to the memory
  *
  * 	The child class will be defined for each type of physical driver used to access to our WB board.
  */

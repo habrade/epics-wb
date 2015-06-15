@@ -21,22 +21,22 @@
 #include <vector>
 #include <cstdarg>
 std::string string_format(const std::string &fmt, ...) {
-    int size = 512;
-    char* buffer = 0;
-    buffer = new char[size];
-    va_list vl;
-    va_start(vl, fmt);
-    int nsize = vsnprintf(buffer, size, fmt.c_str(), vl);
-    if(size<=nsize){ //fail delete buffer and try again
-        delete[] buffer;
-        buffer = 0;
-        buffer = new char[nsize+1]; //+1 for /0
-        nsize = vsnprintf(buffer, size, fmt.c_str(), vl);
-    }
-    std::string ret(buffer);
-    va_end(vl);
-    delete[] buffer;
-    return ret;
+	int size = 512;
+	char* buffer = 0;
+	buffer = new char[size];
+	va_list vl;
+	va_start(vl, fmt);
+	int nsize = vsnprintf(buffer, size, fmt.c_str(), vl);
+	if(size<=nsize){ //fail delete buffer and try again
+		delete[] buffer;
+		buffer = 0;
+		buffer = new char[nsize+1]; //+1 for /0
+		nsize = vsnprintf(buffer, size, fmt.c_str(), vl);
+	}
+	std::string ret(buffer);
+	va_end(vl);
+	delete[] buffer;
+	return ret;
 }
 
 //========================================================================
@@ -621,9 +621,9 @@ bool WBNode::sync(WBMemCon* con, WBAccMode amode, uint32_t dma_dev_offset)
 	if(dma_dev_offset==WB_NODE_MEMBCK_OWNADDR) dma_dev_offset=address;
 
 	//Check if the latest register has the latest size.
-	prh_bsize=getLastReg()->getOffset()/sizeof(uint32_t);
+	prh_bsize=getLastReg()->getOffset()+4;
 
-	TRACE_P_DEBUG("%s 0x%08X + [0x0,0x%X]",getCName(),dma_dev_offset,getLastReg()->getOffset());
+	TRACE_P_DEBUG("%s 0x%08X + [0x0,0x%X] (DMA sync)",getCName(),dma_dev_offset,getLastReg()->getOffset());
 
 	//first write to dev
 	if(amode & WB_AM_W)
