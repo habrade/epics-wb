@@ -36,8 +36,10 @@ struct AsynWBField {
  */
 struct AsynStatusObj {
 	asynStatus data;
+	AsynStatusObj(): data(asynSuccess) {};
 	AsynStatusObj(asynStatus data): data(data) {};
-	AsynStatusObj& operator&=(const asynStatus &data) { if(data!=asynSuccess || (this->data!=asynSuccess && data!=asynSuccess)) {this->data=data;} return *this; }
+	AsynStatusObj& operator&=(bool data) { if(data==false) {this->data=asynError;} return *this; }
+	AsynStatusObj& operator&=(const asynStatus &data) { if(data!=asynSuccess) {this->data=data;} return *this; }
 	AsynStatusObj& operator=(const asynStatus &data)  { this->data=data; return *this; }
 	bool operator==(asynStatus data) const { return (this->data==data); }
 	asynStatus operator &() const { return this->data; };

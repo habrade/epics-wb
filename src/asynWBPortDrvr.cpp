@@ -23,8 +23,8 @@
 
 #include "asynWBPortDrvr.h"
 #include "awbpd_trace.h"
-#define TRACE_P_VDEBUG(...) TRACE_P_DEBUG( __VA_ARGS__)
-#define TRACE_P_VVDEBUG(...) TRACE_P_DEBUG( __VA_ARGS__)
+#define TRACE_P_VDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
+#define TRACE_P_VVDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
 
 /**
  * Constructor for the asynWBPortDrvr class.
