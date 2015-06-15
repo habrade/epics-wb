@@ -124,13 +124,10 @@ asynStatus asynWBPortDrvr::createParam(const char* name, WBField* fld,int *pInde
 	if(fld && fld->getReg() && fld->getReg()->getPrtNode())
 	{
 		pIndex=(pIndex)?pIndex:&tmp;
-		switch(fld->getType())
-		{
-		case WBField::WBF_32U: 	 type=asynParamInt32;	break;
-		case WBField::WBF_32FP:	 type=asynParamFloat64; break;
-		case WBField::WBF_32F2C: type=asynParamFloat64; break;
-		default: return asynError;
-		}
+		if(fld->getType() && WBField::WBF_TM_FIXED_POINT)
+			type=asynParamFloat64;
+		else
+			type=asynParamInt32;
 
 		//if(list==1) list=0;
 
@@ -139,13 +136,17 @@ asynStatus asynWBPortDrvr::createParam(const char* name, WBField* fld,int *pInde
 		{
 			fldPrms[*pIndex].pFld=fld;
 			fldPrms[*pIndex].syncmode=syncmode;
+			if(fld->getType() && WBField::WBF_TM_FIXED_POINT)
+				setDoubleParam(*pIndex,fld->getFloat());
+			else
+				setIntegerParam(*pIndex,fld->getU32());
 		}
 
 		TRACE_P_DEBUG("%10s#%02d: 0x%08X (msync=%d, %s) <= %s/%s_%s (PV/Fld)",
 				fld->getReg()->getPrtNode()->getCName(),*pIndex,
 				fld->getReg()->getOffset(true),syncmode,
 				(type==asynParamInt32)?"I32":"U64",name,
-				fld->getReg()->getCName(),fld->getCName());
+						fld->getReg()->getCName(),fld->getCName());
 	}
 	return status;
 }
