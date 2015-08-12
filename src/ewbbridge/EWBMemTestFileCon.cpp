@@ -1,11 +1,11 @@
 /*
- * WBMemTestFileCon.cpp
+ * EWBMemTestFileCon.cpp
  *
  *  Created on: Oct 31, 2013
  *      Author: Benoit Rat (benoit<AT>sevensols.com)
  */
 
-#include "WBMemTestFileCon.h"
+#include "EWBMemTestFileCon.h"
 #include <cstring>
 
 #include "awbpd_trace.h"
@@ -18,14 +18,14 @@
 
 
 /**
- * Constructor of the WBMemTestFileCon
+ * Constructor of the EWBMemTestFileCon
  *
  * This function will allocate one internal buffer of
  * BUFF_MAX_SIZEB for both read and write.
  * It will also try to open the file.
  */
 WBMemTestFileCon::WBMemTestFileCon(const std::string& fname)
-: WBMemCon(WBMemCon::TFILE), fname(fname), lastpos(0)
+: EWBMemCon(EWBMemCon::TFILE), fname(fname), lastpos(0)
 {
 	o_file.open(fname.c_str(),std::fstream::out|std::fstream::in);
 	TRACE_P_INFO("tfile=%d (%s)",o_file.is_open(),fname.c_str());
@@ -50,7 +50,7 @@ WBMemTestFileCon::~WBMemTestFileCon()
 /**
  * Function that fill the file with the all the registers in the wishbone structure.
  */
-void WBMemTestFileCon::generate(WBNode* node)
+void EWBMemTestFileCon::generate(WBNode* node)
 {
 	WBReg *reg=NULL;
 	uint32_t data;
@@ -86,7 +86,7 @@ void WBMemTestFileCon::generate(WBNode* node)
  * \param[inout] data the read "read from/write to" the file.
  * \param[in] to_dev if true we write to the file (aka device).
  */
-bool WBMemTestFileCon::mem_access(uint32_t wb_addr, uint32_t* data, bool to_dev)
+bool EWBMemTestFileCon::mem_access(uint32_t wb_addr, uint32_t* data, bool to_dev)
 {
 	uint32_t rdata=0xDA1AFEED;
 	char buff[50];
@@ -130,7 +130,7 @@ bool WBMemTestFileCon::mem_access(uint32_t wb_addr, uint32_t* data, bool to_dev)
 	return true;
 }
 
-uint32_t WBMemTestFileCon::get_block_buffer(uint32_t** hDma, bool to_dev)
+uint32_t EWBMemTestFileCon::get_block_buffer(uint32_t** hDma, bool to_dev)
 {
 	*hDma=pData;
 	return BUFF_MAX_SIZEB;
@@ -153,7 +153,7 @@ uint32_t WBMemTestFileCon::get_block_buffer(uint32_t** hDma, bool to_dev)
  * \param[in] nsize The size in byte that we want to read/write.
  * \param[in] to_dev if true we write to the device.
  */
-bool WBMemTestFileCon::mem_block_access(uint32_t dev_addr, uint32_t nsize,bool to_dev)
+bool EWBMemTestFileCon::mem_block_access(uint32_t dev_addr, uint32_t nsize,bool to_dev)
 {
 	char buff[50], *p;
 	std::string line;
@@ -206,7 +206,7 @@ bool WBMemTestFileCon::mem_block_access(uint32_t dev_addr, uint32_t nsize,bool t
  * \param[in] rewind if true we start the search from the beginning, otherwise from the current position.
  * \return the position of the line that contains the address or -1 if it was not found.
  */
-long WBMemTestFileCon::seek(std::fstream& tfile, uint32_t wb_addr, bool rewind)
+long EWBMemTestFileCon::seek(std::fstream& tfile, uint32_t wb_addr, bool rewind)
 {
 	std::string line;
 

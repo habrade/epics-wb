@@ -1,6 +1,6 @@
 /**
  *  \file
- *  \brief Contains the class WBMemX1052Con.
+ *  \brief Contains the class EWBMemX1052Con.
  *
  *
  *
@@ -13,10 +13,10 @@
  *  \author Benoit Rat (benoit<AT>sevensols.com)
  */
 
-#ifndef WBMEMX1052CON_H_
-#define WBMEMX1052CON_H_
+#ifndef EWBMEMX1052CON_H_
+#define EWBMEMX1052CON_H_
 
-#include "WBNode.h"
+#include "EWBBridge.h"
 
 #ifndef _WDC_LIB_H_
 typedef void * WDC_DEVICE_HANDLE; //!< Hack to not include all the X1052 api in this header
@@ -26,19 +26,19 @@ typedef void * X1052_BIDMA_HANDLE; //!< Hack to not include all the X1052 api in
 #endif
 
 /**
- * WB memory connector using X1052 driver
+ * EWB memory connector using X1052 driver
  *
  * \warning
  * The x1052_api and Jungo Windriver libraries must be linked
  * during the compilation if we want to compile this class.\n
- * You might also define the \b AWBPD_NO_X1052 preprocessor variable
+ * You might also define the \b EWBPD_NO_X1052 preprocessor variable
  * if you want to disable the compilation of the cpp file.
  *
  */
-class WBMemX1052Con: public WBMemCon {
+class EWBMemX1052Con: public EWBBridge {
 public:
-	WBMemX1052Con(int idPCIe,uint32_t magic_addr=0xFFFFFFFF, uint32_t magic_val=-1);
-	virtual ~WBMemX1052Con();
+	EWBMemX1052Con(int idPCIe,uint32_t magic_addr=0xFFFFFFFF, uint32_t magic_val=-1);
+	virtual EWBMemX1052Con();
 
 	bool isValid();
 
@@ -53,4 +53,4 @@ private:
     static int nHandles;
 };
 
-#endif /* WBMEMX1052CON_H_ */
+#endif /* EWBMEMX1052CON_H_ */

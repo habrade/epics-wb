@@ -1,12 +1,14 @@
 /*
- * awbpd_trace.h
+ * EWBTrace.h
  *
- *  Created on: Nov 4, 2013
+ *  Created on: Aug 11, 2015
  *      Author: Benoit Rat (benoit<AT>sevensols.com)
  */
 
-#ifndef AWBPD_TRACE_H_
-#define AWBPD_TRACE_H_
+#ifndef EWBTRACE_H_
+#define EWBTRACE_H_
+
+
 
 #if defined(TRACE_STDERR)
 #define errlogPrintf(...) fprintf(stderr,__VA_ARGS__)
@@ -155,4 +157,44 @@
 
 #include <sstream>
 
-#endif /* AWBPD_TRACE_H_ */
+
+/**
+ * Singleton class to handle trace message
+ *
+ * @ref: http://stackoverflow.com/questions/1008019/c-singleton-design-pattern
+ */
+class EWBTrace {
+    public:
+        static EWBTrace& getInstance()
+        {
+            static EWBTrace    instance; // Guaranteed to be destroyed.
+                                  // Instantiated on first use.
+            return instance;
+        }
+
+        static std::string string_format(const std::string &fmt, ...);
+
+
+    private:
+        EWBTrace() {};                   // Forbidden Constructor
+
+#if __cplusplus <= 199711L
+        // C++ 11
+        // =======
+        // We can use the better technique of deleting the methods
+        // we don't want.
+        EWBTrace(EWBTrace const&)               = delete;
+        void operator=(EWBTrace const&)  = delete;
+#else
+        // C++ 03
+        // ========
+        // Dont forget to declare these two. You want to make sure they
+        // are unacceptable otherwise you may accidentally get copies of
+        // your singleton appearing.
+        EWBTrace(EWBTrace const&);              // Don't Implement
+        void operator=(EWBTrace const&); // Don't implement
+#endif
+
+};
+
+#endif /* EWBTRACE_H_ */

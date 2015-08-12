@@ -1,23 +1,23 @@
 /**
  *  \file
- *  \brief Contains the class WBMemTestFileCon.
+ *  \brief Contains the class EWBMemTestFileCon.
  *
  *
  *  \date  Nov 4, 2013
  *  \author Benoit Rat (benoit<AT>sevensols.com)
  */
 
-#ifndef WBMEMTFILECON_H_
-#define WBMEMTFILECON_H_
+#ifndef EWBMEMTFILECON_H_
+#define EWBMEMTFILECON_H_
 
-#include "WBNode.h"
+#include EWBNode.h"
 
 #include <iostream>
 #include <fstream>
 #include <string>
 
 /**
- * Fake WB memory connector by testing on a file
+ * Fake EWB memory connector by testing on a file
  *
  * The operation will read and write in the test file.
  *
@@ -33,10 +33,10 @@
  * \endcode
  *
  */
-class WBMemTestFileCon: public WBMemCon {
+class EWBMemTestFileCon: public EWBMemCon {
 public:
 	WBMemTestFileCon(const std::string& fname);
-	virtual ~WBMemTestFileCon();
+	virtual EWBMemTestFileCon();
 
 	void generate(WBNode* node);
 
@@ -53,4 +53,4 @@ private:
 	uint32_t *pData;
 };
 
-#endif /* WBMEMTFILECON_H_ */
+#endif /* EWBMEMTFILECON_H_ */

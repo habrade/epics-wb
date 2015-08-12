@@ -1,12 +1,12 @@
 /*
- * WBMemX1052Con.cpp
+ * EWBMemX1052Con.cpp
  *
  *  Created on: Oct 31, 2013
  *      Author: Benoit Rat (benoit<AT>sevensols.com)
  */
 #include "awbpd_trace.h"
 
-#ifndef AWBPD_NO_X1052
+#ifndef EWBPD_NO_X1052
 
 #define TRACE_H
 #include <x1052_api.h>
@@ -17,16 +17,16 @@
 #define BOOL int
 #endif
 
-#include "WBMemX1052Con.h"
+#include EWBMemX1052Con.h"
 
 
 #define TRACE_P_VDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
 #define TRACE_P_VVDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
-int WBMemX1052Con::nHandles = -1; //!< Initiate static nHandles to count number of PCIe slot opened
+int EWBMemX1052Con::nHandles = -1; //!< Initiate static nHandles to count number of PCIe slot opened
 
 
 /**
- * Constructor of the WBMemX1052Con class.
+ * Constructor of the EWBMemX1052Con class.
  *
  * The constructor init the X1052 library and open an handler
  * on the corresponding device.
@@ -35,7 +35,7 @@ int WBMemX1052Con::nHandles = -1; //!< Initiate static nHandles to count number 
  * \param[in] idxPCIe The index of PCIe slot for X1052 Devices
  */
 WBMemX1052Con::WBMemX1052Con(int idxPCIe,uint32_t magic_addr, uint32_t magic_val)
-: WBMemCon(WBMemCon::X1052,"X1052"), hBiDma(NULL), hDev(NULL)
+: EWBMemCon(WBMemCon::X1052,"X1052"), hBiDma(NULL), hDev(NULL)
 {
 	uint32_t dwStatus, tmp;
 	if(nHandles<0)
@@ -98,7 +98,7 @@ WBMemX1052Con::WBMemX1052Con(int idxPCIe,uint32_t magic_addr, uint32_t magic_val
 }
 
 /**
- * Desctructor of the WBMemX1052 class
+ * Desctructor of the EWBMemX1052 class
  *
  * It will close the handler on the PCIe device.
  */
@@ -126,7 +126,7 @@ WBMemX1052Con::~WBMemX1052Con()
 /**
  * Return true if the handler on the PCIe is valid
  */
-bool WBMemX1052Con::isValid()
+bool EWBMemX1052Con::isValid()
 {
 	 return hDev!=NULL;
 }
@@ -139,7 +139,7 @@ bool WBMemX1052Con::isValid()
  * \param[in] to_dev if true we write to the device.
  * \see X1052_Wishbone_CSR() function
  */
-bool WBMemX1052Con::mem_access(uint32_t wb_addr, uint32_t* data, bool to_dev)
+bool EWBMemX1052Con::mem_access(uint32_t wb_addr, uint32_t* data, bool to_dev)
 {
 	int status;
 	TRACE_CHECK_PTR(hDev,false);
@@ -163,7 +163,7 @@ bool WBMemX1052Con::mem_access(uint32_t wb_addr, uint32_t* data, bool to_dev)
  * \param[in] to_dev if true we write to the device.
  * \see X1052_DMAToDev() and X1052_DMAFromDev() function.
  */
-bool WBMemX1052Con::mem_block_access(uint32_t dev_addr, uint32_t nsize,bool to_dev)
+bool EWBMemX1052Con::mem_block_access(uint32_t dev_addr, uint32_t nsize,bool to_dev)
 {
 	int mbps;
 	TRACE_CHECK_PTR(hDev,false);
@@ -199,7 +199,7 @@ bool WBMemX1052Con::mem_block_access(uint32_t dev_addr, uint32_t nsize,bool to_d
  * otherwise we return the read to dev buffer.
  *  \return The size in byte of the retrieved buffer
  */
-uint32_t WBMemX1052Con::get_block_buffer(uint32_t** hDma, bool to_dev)
+uint32_t EWBMemX1052Con::get_block_buffer(uint32_t** hDma, bool to_dev)
 {
 	(*hDma)=(uint32_t*)X1052_BiDMAGetUserSpaceBuffer(hBiDma,(int)to_dev);
 	return X1052_DMA_TRANSFER_MAXB;

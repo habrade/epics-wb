@@ -1,0 +1,211 @@
+top = peripheral {
+   name = "TestWB"; 
+   description = "Fake peripheral to test all possibilities";
+   hdl_entity = "wb_test";
+   c_prefix = "WB2_test";   
+   hdl_prefix = "WB2Test"; 
+ 
+   reg {               
+     name = "Control Statut Register";
+     description = "Reset";
+     prefix = "CSR";
+
+      field {
+         name = "Reset bit";
+         description = "write 1 to reset something";
+         prefix = "rst";
+         type = BIT;
+         access_bus = READ_WRITE;
+         access_dev = READ_WRITE;
+         load = LOAD_EXT;
+      };
+      
+      
+      field {
+         name = "Enable";
+         description = "This registers indicates the ADC chip selected";
+         prefix = "enable";
+         type = BIT;
+         align=1;
+         access_bus = READ_WRITE;
+         access_dev = READ_ONLY;
+      };
+      
+      field {
+         name = "Number";
+         description = "This registers indicates a number that need to be read";
+         prefix = "number";
+         type = SLV;
+         size = 8;
+         align = 8;
+         access_bus = READ_ONLY;
+         access_dev = WRITE_ONLY;
+      }; 
+   };
+   
+   
+   reg {               
+     name = "ADC_IQ";
+     description = "I,Q repreTypicial Amplitude P.";
+     prefix = "adc";
+
+      field {
+         name = "I";
+         description = "I Voltage units: 16 bits with 2 bits integer (2'complement)";
+         prefix = "I";
+         type = SLV;
+         size = 16;
+         nbfp = 14;
+         access_bus = READ_WRITE;
+         access_dev = READ_ONLY;
+      }; 
+
+      field {
+         name = "Q";
+         description = "Q Minimum Reference directly [-sqrt(2):sqrt(2)]V. Voltage units: 16 bits with 2 bits integer (2'complement)";
+         prefix = "Q";
+         type = SLV;
+         size = 16;
+         nbfp = 14;
+         align = 16;
+         access_bus = READ_WRITE;
+         access_dev = READ_ONLY;
+      }; 
+   };
+
+ 
+   reg {               
+     name = "Full Integer";
+     description = "Minimun Voltage register until Reset";
+     prefix = "Full";
+
+      field {
+         name = "U32";
+         description = "Full field";
+         prefix = "u32";
+         type = SLV;
+         size = 32;
+         access_bus = READ_ONLY;
+         access_dev = WRITE_ONLY;
+      }; 
+   };
+   
+   reg {               
+     name = "Full Fixed Integer";
+     description = "Minimun Voltage register until Reset";
+     prefix = "FullFixed";
+
+      field {
+         name = "U32";
+         description = "Full field";
+         prefix = "all";
+         type = SLV;
+         size = 32;
+         nbfp = 32;
+         access_bus = READ_ONLY;
+         access_dev = WRITE_ONLY;
+      }; 
+   };
+   
+   
+   reg {
+     name = "TestByteSign";
+     description = "Test on the 4 bytes";
+     prefix = "testbsign";
+
+      field {
+         name = "Unsigned";
+         description = "Unsigned byte";
+         prefix = "u";
+         type = SLV;
+         size = 8;
+         sign = 0;
+         access_bus = READ_ONLY;
+         access_dev = WRITE_ONLY;
+      }; 
+      
+     field {
+         name = "Sign1 MSB";
+         description = "MSB Signess";
+         prefix = "sign1";
+         type = SLV;
+         size = 8;
+         align = 8;
+         sign= 1;
+         access_bus = READ_ONLY;
+         access_dev = WRITE_ONLY;
+      };
+      
+      
+      field {
+         name = "Sign2C";
+         description = "2Complement's signess";
+         prefix = "sign2";
+         type = SLV;
+         size = 8;
+         align = 16;
+         sign= 1;
+         access_bus = READ_ONLY;
+         access_dev = WRITE_ONLY;
+      }; 
+   };
+   
+   reg {
+     name = "TestByteFixed";
+     description = "Test full fixed point on the 4 bytes";
+     prefix = "testbfixed";
+      field {
+         name = "Unsigned";
+         description = "Unsigned byte";
+         prefix = "u";
+         type = SLV;
+         size = 8;
+         nbfp = 8;
+         sign = 0;
+         access_bus = READ_ONLY;
+         access_dev = WRITE_ONLY;
+      }; 
+      
+     field {
+         name = "Sign1 MSB";
+         description = "MSB Signess";
+         prefix = "sign1";
+         type = SLV;
+         size = 8;
+         align = 8;
+         nbfp = 7;
+         sign = 1;
+         access_bus = READ_ONLY;
+         access_dev = WRITE_ONLY;
+      };
+      
+      
+      field {
+         name = "Sign2C";
+         description = "2Complement's signess";
+         prefix = "sign2";
+         type = SLV;
+         size = 8;
+         align = 16;
+         nbfp = 8;
+         sign = 1;
+         access_bus = READ_ONLY;
+         access_dev = WRITE_ONLY;
+      }; 
+      
+      
+      field {
+         name = "Default";
+         description = "Default signess (2complements)";
+         prefix = "default";
+         type = SLV;
+         size = 8;
+         align = 24;
+         nbfp = 8;
+         sign = 2;
+         access_bus = READ_ONLY;
+         access_dev = WRITE_ONLY;
+      }; 
+   };
+
+};

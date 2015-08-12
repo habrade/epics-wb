@@ -1,0 +1,30 @@
+R PTP Core Sync Monitor v 1.0
+Esc = exit
+
+TAI Time:                  Thu, Jan 1, 1970, 04:26:33
+
+wru1: Link up   (RX: 55761, TX: 15967), mode: WR Slave   Locked  Calibrated
+
+PTP status: slave
+
+Synchronization status:
+
+Servo state:               TRACK_PHASE
+Phase tracking:            ON
+Synchronization source:
+Aux clock status:
+
+Timing parameters:
+
+Round-trip time (mu):    770929 ps
+Master-slave delay:      409632 ps
+Master PHY delays:       TX: 174900 ps, RX: 255214 ps
+Slave PHY delays:        TX: 46407 ps, RX: 175043 ps
+Total link asymmetry:       -48335 ps
+Cable rtt delay:         119365 ps
+Clock offset:                   -1 ps
+Phase setpoint:                489 ps
+Skew:                           -3 ps
+Manual phase adjustment:         0 ps
+Update counter:               2486
+--
