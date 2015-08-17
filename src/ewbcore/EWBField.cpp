@@ -60,6 +60,13 @@ EWBField::EWBField(EWBReg *pReg,
 	for (; mask; mask >>= 1, i++)
 		this->width=i-shift;
 
+	if(this->type==EWBF_32FP) {
+		if((this->width > this->nfb)==false) TRACE_P_WARNING("%s Width (%d) must be superior than nbfp (%d)",getCName(),width,nfb);
+	}
+	else {
+		if((this->width >= this->nfb)==false) TRACE_P_WARNING("%s Width (%d) must be superior or equal than nbfp (%d)",getCName(),width,nfb);
+	}
+
 
 	if(pReg)
 	{
@@ -145,8 +152,41 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;
+	case EWBF_32I:
+		utmp=(1<<(this->width-1));
+		if(to_value)
+		{
+			ret=this->regCvt(&fixed,reg_data,to_value);
+			if(fixed & utmp) *value=-1.f*(float)(fixed & ~utmp);
+			else *value=(float)fixed;
+		}
+		else
+		{
+			fixed=(uint32_t)round(fabs(*value)) & ~utmp;
+			if(*value<0) fixed |=utmp;
+			ret=this->regCvt(&fixed,reg_data,to_value);
+		}
+		break;
+	case EWBF_TM_SIGN_2COMP:
+		if(to_value)
+		{
+			ret=this->regCvt(&fixed,reg_data,to_value);
+			if (fixed & (1 << (this->width-1))) //Negative 2C
+			{
+				fixed=((~fixed)+1) & (this->mask >> this->shift);
+				*value=-1.f*(float)fixed;
+			}
+			else
+				*value=(float)fixed;
+		}
+		else
+		{
+			fixed=(uint32_t)round(fabs(*value));
+			if(*value<0) fixed=(~(fixed))+1; 				//convert absolute signed fixed point to 2C fixed point when value <0
+			ret=this->regCvt(&fixed,reg_data,to_value);
+		}
+		break;
 	case EWBF_TM_FIXED_POINT: //Unsigned Fixed point conversion
-	case EWBF_32FP: 			//Signed Fixed point conversion
 		if(to_value)
 		{
 			ret=this->regCvt(&fixed,reg_data,to_value);
@@ -158,6 +198,21 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;
+	case EWBF_32FP: 			//Signed Fixed point conversion
+		utmp=(1<<(this->width-1));
+		if(to_value)
+		{
+			ret=this->regCvt(&fixed,reg_data,to_value);
+			if(fixed & utmp) *value=-1.f*(float)((fixed & ~utmp)/pow(2,this->nfb));
+			else *value=(float)(fixed/pow(2,this->nfb));
+		}
+		else
+		{
+			fixed=(uint32_t)(round(fabs(*value) * pow(2,this->nfb))) & ~utmp;
+			if(*value<0) fixed |=utmp;
+			ret=this->regCvt(&fixed,reg_data,to_value);
+		}
+		break;
 	case EWBF_32F2C: //2 complements fixed point conversion
 		if(to_value)
 		{
@@ -165,10 +220,10 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 			if (fixed & (1 << (this->width-1)))
 			{
 				fixed=((~fixed)+1) & (this->mask >> this->shift) ; //Convert negative 2C to negative Fixed Point
-				*value=(-1.f / (float)(1<<this->nfb)) * (float)fixed; // then to floating
+				*value=(-1.f / (float)(1ULL<<this->nfb)) * (float)fixed; // then to floating
 			}
 			else
-				*value= (1.f / (float)(1<<this->nfb)) * (float)fixed;			//Convert directly Fixed Point to Floating Point
+				*value= (1.f / (float)(1ULL<<this->nfb)) * (float)fixed;			//Convert directly Fixed Point to Floating Point
 		}
 		else
 		{
@@ -176,9 +231,10 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 			if(checkOverflow)
 			{
 				utmp=1 << ((this->width-this->nfb)-1);
-				if(ftmp >= utmp) ftmp=(float)utmp;
+				if(ftmp >= utmp)
+					ftmp=(float)utmp;
 			}
-			fixed=round(ftmp * (float)(1 << this->nfb)); //convert to signed fixed point using absolute value
+			fixed=round((double)ftmp * (double)(1ULL << this->nfb)); //convert to signed fixed point using absolute value
 			if(*value<0) fixed=(~(fixed))+1; 				//convert absolute signed fixed point to 2C fixed point when value <0
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}

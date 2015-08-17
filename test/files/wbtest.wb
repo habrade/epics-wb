@@ -1,11 +1,11 @@
 top = peripheral {
-   name = "TestWB"; 
+   name = "TestWB";
    description = "Fake peripheral to test all possibilities";
    hdl_entity = "wb_test";
-   c_prefix = "WB2_test";   
-   hdl_prefix = "WB2Test"; 
- 
-   reg {               
+   c_prefix = "WB2_test";
+   hdl_prefix = "WB2Test";
+
+   reg {
      name = "Control Statut Register";
      description = "Reset";
      prefix = "CSR";
@@ -19,7 +19,6 @@ top = peripheral {
          access_dev = READ_WRITE;
          load = LOAD_EXT;
       };
-      
       
       field {
          name = "Enable";
@@ -40,14 +39,14 @@ top = peripheral {
          align = 8;
          access_bus = READ_ONLY;
          access_dev = WRITE_ONLY;
-      }; 
+      };
    };
-   
-   
-   reg {               
-     name = "ADC_IQ";
+
+
+   reg {
+     name = "DAC_IQ";
      description = "I,Q repreTypicial Amplitude P.";
-     prefix = "adc";
+     prefix = "dac";
 
       field {
          name = "I";
@@ -58,7 +57,7 @@ top = peripheral {
          nbfp = 14;
          access_bus = READ_WRITE;
          access_dev = READ_ONLY;
-      }; 
+      };
 
       field {
          name = "Q";
@@ -70,11 +69,40 @@ top = peripheral {
          align = 16;
          access_bus = READ_WRITE;
          access_dev = READ_ONLY;
-      }; 
+      };
    };
 
- 
-   reg {               
+   reg {
+     name = "ADC";
+     description = "Amplitude/Phase representation";
+     prefix = "adc";
+
+      field {
+         name = "Amplitude";
+         description = "Voltage units: 16 bits with 2 bits integer (2'complement)";
+         prefix = "Amp";
+         type = SLV;
+         size = 16;
+         nbfp = 14;
+         access_bus = READ_WRITE;
+         access_dev = READ_ONLY;
+      };
+
+      field {
+         name = "Phase";
+         description = "Degrees units: 16 bits with 13 bits integer (2'complement)";
+         prefix = "Pha";
+         type = SLV;
+         size = 16;
+         nbfp = 3;
+         align = 16;
+         access_bus = READ_WRITE;
+         access_dev = READ_ONLY;
+      };
+   };
+
+
+   reg {
      name = "Full Integer";
      description = "Minimun Voltage register until Reset";
      prefix = "Full";
@@ -87,10 +115,11 @@ top = peripheral {
          size = 32;
          access_bus = READ_ONLY;
          access_dev = WRITE_ONLY;
-      }; 
+      };
    };
-   
-   reg {               
+
+
+   reg {
      name = "Full Fixed Integer";
      description = "Minimun Voltage register until Reset";
      prefix = "FullFixed";
@@ -104,14 +133,14 @@ top = peripheral {
          nbfp = 32;
          access_bus = READ_ONLY;
          access_dev = WRITE_ONLY;
-      }; 
+      };
    };
-   
-   
+
+
    reg {
      name = "TestByteSign";
      description = "Test on the 4 bytes";
-     prefix = "testbsign";
+     prefix = "bsign";
 
       field {
          name = "Unsigned";
@@ -136,7 +165,6 @@ top = peripheral {
          access_dev = WRITE_ONLY;
       };
       
-      
       field {
          name = "Sign2C";
          description = "2Complement's signess";
@@ -144,17 +172,19 @@ top = peripheral {
          type = SLV;
          size = 8;
          align = 16;
-         sign= 1;
+         sign= 2;
          access_bus = READ_ONLY;
          access_dev = WRITE_ONLY;
-      }; 
+      };
    };
-   
+
+
    reg {
      name = "TestByteFixed";
      description = "Test full fixed point on the 4 bytes";
-     prefix = "testbfixed";
-      field {
+     prefix = "bfixed";
+     
+     field {
          name = "Unsigned";
          description = "Unsigned byte";
          prefix = "u";
@@ -179,7 +209,6 @@ top = peripheral {
          access_dev = WRITE_ONLY;
       };
       
-      
       field {
          name = "Sign2C";
          description = "2Complement's signess";
@@ -188,11 +217,10 @@ top = peripheral {
          size = 8;
          align = 16;
          nbfp = 8;
-         sign = 1;
+         sign = 2;
          access_bus = READ_ONLY;
          access_dev = WRITE_ONLY;
-      }; 
-      
+      };
       
       field {
          name = "Default";
@@ -202,10 +230,8 @@ top = peripheral {
          size = 8;
          align = 24;
          nbfp = 8;
-         sign = 2;
          access_bus = READ_ONLY;
          access_dev = WRITE_ONLY;
-      }; 
+      };
    };
-
 };
