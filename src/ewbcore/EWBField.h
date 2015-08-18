@@ -89,8 +89,7 @@ public:
 	const EWBReg* getReg() const { return pReg; }			//!< Get the linked register (RO)
 	EWBReg* getReg() { return pReg; }						//!< Get the linked register
 	bool isOverflowPrevented() const { return checkOverflow; }	//!< When true prevent overflow during FP conversion \ref regCvt(), \ ref convert()
-	bool isValid() const { return isValid(true); }
-	bool isValid(bool connected) const { return (pReg && pReg->isValid(connected)); }
+	bool isValid(int level=-1) const;
 
 protected:
 	void getLimit(float &fmin, float &fmax);

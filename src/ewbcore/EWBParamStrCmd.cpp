@@ -45,9 +45,9 @@ EWBParamStrCmd::~EWBParamStrCmd()
 }
 
 
-bool EWBParamStrCmd::isValid() const
+bool EWBParamStrCmd::isValid(int level) const
 {
-	return (pConsole && pConsole->isValid());
+	return (level!=0)?(pConsole && pConsole->isValid()):pConsole!=NULL;
 }
 
 

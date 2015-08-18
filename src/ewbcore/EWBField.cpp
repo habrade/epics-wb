@@ -430,6 +430,24 @@ bool EWBField::sync(EWBSync::AMode amode)
 }
 
 /**
+ * Return @true if this EWBField is valid.
+ *
+ * @note To be fully valid the EWBField must be connected to
+ * EWBBridge in order to sync with the device, you can use level
+ * to check if it is valid.
+ * EWBBride (0) < EWBBus (1) < EWBPeriph (2) < EWBReg (3) < EWBField (4)
+ *
+ *
+ * @param[in] level check the validity in each level.
+ * This check is stopped when it reaches 0 (never when staring at -1)
+ */
+bool EWBField::isValid(int level) const
+{
+	if(level!=0) return (pReg && pReg->isValid(level-1));
+	else return pReg;
+}
+
+/**
  * operator that print the data of the EWBField in a stream
  */
 std::ostream & operator<<(std::ostream & o, const EWBField &f)

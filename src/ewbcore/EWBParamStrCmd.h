@@ -24,7 +24,7 @@ public:
 	virtual ~EWBParamStrCmd();
 	const std::string& getValue() const { return value; }		//!< Get the name
 	bool sync(EWBSync::AMode mode);
-	bool isValid() const;
+	bool isValid(int level=-1) const;
 
 protected:
 

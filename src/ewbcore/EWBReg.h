@@ -48,7 +48,7 @@ public:
 	const std::string& getName() const { return this->name; }	//!< Get the name
 	const char *getCName() const { return this->name.c_str(); }	//!< Get the name in "C" format for printf function
 	const std::string& getDesc() const { return this->desc; }	//!< Get the description
-	bool isValid(bool connected=true) const { return (pPeriph && pPeriph->isValid(connected)); }
+	bool isValid(int level=-1) const;
 
 protected:
 	EWBPeriph* getPeriph() { return pPeriph; }

@@ -39,11 +39,11 @@ public:
 //	bool sync(uint32_t* pData32, uint32_t length, EWBSync::AMode amode, uint32_t doffset=0);
 
 	int getID() const { return this->ID; }			//!< Get ID of WBPeriph
+	bool isValid(int level=-1) const { return (level!=0)?(bus && bus->isValid(level-1)):bus!=NULL; } 	//!< Return true when all pointers are defined
 	int getIndex() const { return this->index; }	//!< Get unique index of WBPeriph
 	const std::string& getName() const { return this->name; }	//!< Get the name
 	const char *getCName() const { return this->name.c_str(); }	//!< Get the name in "C" format for printf function
 	const std::string& getDesc() const { return this->desc; }	//!< Get the description
-	bool isValid(bool connected=true) const { return (bus && bus->isValid(connected)); } 	//!< Return true when all pointers are defined
 	const EWBBridge* getBridge() const { return (bus)?bus->getBridge():0; }
 	EWBBridge* getBridge()  { return (bus)?bus->getBridge():0; }
 

@@ -147,6 +147,24 @@ bool EWBReg::sync(EWBSync::AMode amode)
 	return ret;
 }
 
+/**
+ * Return @true if this EWBReg is valid.
+ *
+ * @note To be fully valid the register must be connected to
+ * EWBBridge in order to sync with the device, you can use level
+ * to check if it is valid.
+ * EWBBride (0) < EWBBus (1) < EWBPeriph (2) < EWBReg (3) < EWBField (4)
+ *
+ *
+ * @param[in] level check the validity in each level.
+ * This check is stopped when it reaches 0 (never when staring at -1)
+ */
+bool EWBReg::isValid(int level) const
+{
+	if(level!=0) return (pPeriph && pPeriph->isValid(level-1));
+	else return pPeriph;
+}
+
 
 /**
  * Return the offset of the register

@@ -24,7 +24,7 @@ public:
 	virtual ~EWBSync() {};
 
 	virtual bool sync(EWBSync::AMode mode) = 0;
-	virtual bool isValid() const = 0;
+	virtual bool isValid(int level=-1) const = 0;
 
 	void setForceSync(bool val=true) { this->forceSync=val; };
 
