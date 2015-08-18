@@ -32,9 +32,10 @@
  * \param[in] pPrtNode if valid, we will append this register to the EWBNode.
  * \param[in] name The name of the register
  * \param[in] offset The EWB address offset respective to the peripheral (EWBNode)
+ * \param[in] nfields Tell that this register is already set with a specific number of field
  * \param[in] desc a description of what does this registers in case it is needed.
  */
-EWBReg::EWBReg(EWBPeriph *pPrtPeriph,const std::string &name, uint32_t offset, const std::string &desc)
+EWBReg::EWBReg(EWBPeriph *pPrtPeriph,const std::string &name, uint32_t offset, int nfields, const std::string &desc)
 :EWBSync(EWB_AM_RW)
 {
 	this->pPeriph=pPrtPeriph;
@@ -45,8 +46,14 @@ EWBReg::EWBReg(EWBPeriph *pPrtPeriph,const std::string &name, uint32_t offset, c
 	this->used_mask=0;
 	this->data=0;
 	this->toSync=false;
+	this->nfields=nfields;
 
-	pPrtPeriph->appendReg(this);
+	if(nfields>0) fields.resize(nfields,NULL);
+	bool added=false;
+	if(this->pPeriph) added=this->pPeriph->appendReg(this);
+	if(added==false) {
+		this->pPeriph=NULL; //Remove linking
+	}
 
 	//TRACE_DEBUG("EWBNode::EWBNode() %s (%x, %x)\n",this->name.c_str(),&this->name,this);
 }
@@ -75,7 +82,7 @@ EWBReg::~EWBReg()
  * \param[in] toSyncInit Tell if this field need to be sync at initialization
  * \return true if it was possible to add it, false otherwise.
  */
-bool EWBReg::addField(EWBField *fld, bool toSyncInit)
+bool EWBReg::addField(EWBField *fld, int index, bool toSyncInit)
 {
 	const EWBReg* fld_reg=fld->getReg();
 	if(fld==NULL || fld_reg==NULL || this!=fld_reg)
@@ -90,9 +97,22 @@ bool EWBReg::addField(EWBField *fld, bool toSyncInit)
 				fld->getCName(), fld->getMask(),this->getCName(),this->used_mask);
 		return false;
 	}
+	if(index>0 && nfields>0 && (size_t)index>=fields.size())
+	{
+		TRACE_P_WARNING("This field index %s (%d) >= nfields %d\n",
+				fld->getCName(),index,fields.size());
+		return false;
+	}
+	if(index>0 && nfields>0 && fields[index]!=NULL)
+	{
+		TRACE_P_WARNING("This field index already exists %s. It can not be replaced by %s\n",
+				fields[index]->getCName(),fld->getCName());
+		return false;
+	}
 
-	//Append the field to the vector
-	fields.push_back(fld);
+
+	if(index>=0 && nfields>0) fields[index]=fld;
+	else fields.push_back(fld); //Append the field to the vector
 
 	//append field mask to used mask of the whole register
 	used_mask|=fld->getMask();

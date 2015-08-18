@@ -40,7 +40,9 @@ LFLAGS=-L$(GTEST_DIR)/lib/ -L../src/output/ -lpthread
 ODIR=../src/output/
 
 OBJ_MAIN=EWBParamStrCmd_test.o \
-	EWBField_test.o
+	EWBField_test.o \
+	EWBReg_test.o \
+	EWBPeriph_test.o \
 
 
 # All Google Test headers.  Usually you shouldn't change this

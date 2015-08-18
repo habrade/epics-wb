@@ -4,6 +4,8 @@ top = peripheral {
    hdl_entity = "wb_test";
    c_prefix = "WB2_test";
    hdl_prefix = "WB2Test";
+   
+   sdb_vendor=0x7501;
 
    reg {
      name = "Control Statut Register";
@@ -57,6 +59,7 @@ top = peripheral {
          nbfp = 14;
          access_bus = READ_WRITE;
          access_dev = READ_ONLY;
+         epicsdb_prec = "4";
       };
 
       field {
@@ -86,6 +89,8 @@ top = peripheral {
          nbfp = 14;
          access_bus = READ_WRITE;
          access_dev = READ_ONLY;
+         epicsdb_egu  = "V";
+         epicsdb_hopr = "1.5";
       };
 
       field {

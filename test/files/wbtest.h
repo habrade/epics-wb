@@ -329,5 +329,7 @@
 #define WB2_TEST_PERIPH_PREFIX                "WB2_test"
 #define WB2_TEST_PERIPH_NAME                  "TestWB"
 #define WB2_TEST_PERIPH_DESC                  WBGEN2_DESC("Fake peripheral to test all possibilities")
+#define WB2_TEST_PERIPH_VENID                 0x0000000000007501
+#define WB2_TEST_PERIPH_DEVID                 0xc1fb2535
 
 #endif

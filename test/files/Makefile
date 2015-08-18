@@ -15,7 +15,6 @@ clean:
 
 %.db: %.wb
 	wbgen2 --epicsdb=$@ $<
-	./meldepicsdb.sh $(@:.db=)
 
 %.html: %.wb
 	wbgen2 -f html --doco=$@ $<

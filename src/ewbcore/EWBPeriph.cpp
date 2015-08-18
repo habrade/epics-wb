@@ -28,7 +28,7 @@ int EWBPeriph::sCount=0;
  * \param[in] addr The absolute wishbone address of this peripheral on the device
  * \param[in] desc A description of this peripheral (optional)
  */
-EWBPeriph::EWBPeriph(EWBBus *bus,const std::string &name, uint32_t offset, uint32_t ID, const std::string &desc)
+EWBPeriph::EWBPeriph(EWBBus *bus,const std::string &name, uint32_t offset, uint64_t venID, uint32_t devID, const std::string &desc)
 : EWBSync(EWB_AM_RW)
 {
 	this->bus=bus;
@@ -37,11 +37,12 @@ EWBPeriph::EWBPeriph(EWBBus *bus,const std::string &name, uint32_t offset, uint3
 
 	this->offset=offset;
 
-	this->ID=ID;
+	this->venID=venID;
+	this->devID=devID;
 	this->index=sCount++;
 
 
-	TRACE_P_INFO("%s (%d) => @0x%08X",name.c_str(),ID,offset);
+	TRACE_P_INFO("%s (%4x:%08x) => @0x%08X",name.c_str(),(uint32_t)venID,devID,offset);
 }
 
 /**
@@ -62,9 +63,16 @@ EWBPeriph::~EWBPeriph() {
 /**
  * Simply add a EWBReg to the EWBPeriph structure
  */
-void EWBPeriph::appendReg(EWBReg *pReg)
+bool EWBPeriph::appendReg(EWBReg *pReg)
 {
-	if(pReg) registers.insert(std::pair<uint32_t,EWBReg*>(pReg->getOffset(),pReg));
+	if(pReg) {
+		std::pair<std::map<uint32_t,EWBReg*>::iterator,bool> ret;
+		ret = registers.insert(std::pair<uint32_t,EWBReg*>(pReg->getOffset(),pReg));
+		TRACE_CHECK_VA(ret.second,false,"Could not append '%s' because offset @x%0x is already used by '%s'",
+				pReg->getCName(),pReg->getOffset(),ret.first->second->getCName());
+		return ret.second;
+	}
+	return false;
 }
 
 /**
@@ -307,7 +315,7 @@ void EWBPeriph::print(std::ostream & o, int level) const
 	for(i=0;i<level;i++) pre[i]='\t';
 	pre[i]='\0';
 
-	o << pre << "Node: " << this->name << EWBTrace::string_format(" @0x%08X (ID=%d)",this->offset,this->index) << std::endl;
+	o << pre << "Periph: " << this->name << EWBTrace::string_format(" @0x%08X (%4x:%08x #%d)",this->offset,(uint32_t)this->venID,this->devID,this->index) << std::endl;
 
 	EWBReg * reg=NULL;
 	for(std::map<uint32_t,EWBReg*>::const_iterator ii=this->registers.begin(); ii!=this->registers.end(); ++ii)

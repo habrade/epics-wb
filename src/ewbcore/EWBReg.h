@@ -28,13 +28,13 @@ public:
 	friend class EWBPeriph;
 	friend std::ostream & operator<<(std::ostream & output, const EWBReg &r);
 
-	EWBReg(EWBPeriph *pPrtNode,const std::string &name, uint32_t offset, const std::string &desc="");
+	EWBReg(EWBPeriph *pPrtNode,const std::string &name, uint32_t offset, int nfields = -1, const std::string &desc="");
 	virtual ~EWBReg();
 
 	uint32_t getOffset(bool absolute=false) const;
 	bool sync(EWBSync::AMode amode=EWB_AM_RW);
 
-	bool addField(EWBField *fld, bool toSyncInit=false);
+	bool addField(EWBField *fld, int index=-1, bool toSyncInit=false);
 	const EWBField* getField(const std::string& name) const;
 	const EWBField* operator[](const std::string& name) const { return this->getField(name); }
 
@@ -60,6 +60,7 @@ protected:
 	uint32_t offset;		//!< The offset relative to EWBNode
 	uint32_t data;			//!< The corresponding data
 	uint32_t used_mask;		//!< The mask used by other EWBField
+	int nfields;			//!< The number of field defined
 	bool toSync;			//!< Boolean that tell if this register need to be sync ASAP
 
 private:
