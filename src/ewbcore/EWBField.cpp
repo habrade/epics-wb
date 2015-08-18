@@ -17,6 +17,7 @@
 #include <vector>
 #include <cstdarg>
 #include <ctype.h>
+#include <limits>
 
 
 #define TRACE_P_VDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
@@ -40,45 +41,59 @@
  * if set to "inf" we keep 0 as default value. Does nothing when pReg is NULL.
  */
 EWBField::EWBField(EWBReg *pReg,
-		const std::string &name, uint32_t mask,
+		const std::string &name, uint8_t width,
 		uint8_t shift, uint8_t mode, const std::string &desc,
-		uint8_t signess, uint8_t nfb, double iniVal):
+		uint8_t signess, uint8_t nfb, int index, double iniVal):
 		EWBParam(name,0,mode,desc)
 
 {
+	if((width+shift)>32) TRACE_P_WARNING("width (%d) + shift (%d) <= 32 bits",width,shift);
+
+	if(this->type==EWBF_32FP) {
+		if((width > nfb)==false)
+			TRACE_P_WARNING("%s Width (%d) must be superior than nbfp (%d)",getCName(),width,nfb);
+	}
+	else {
+		if((width >= nfb)==false)
+			TRACE_P_WARNING("%s Width (%d) must be superior or equal than nbfp (%d)",getCName(),width,nfb);
+	}
+
 	this->pReg=pReg;
-	this->mask=mask;
+	this->width=width;
 	this->shift=shift;
 	this->type=(signess & EWBF_TM_SIGNESS);
 	if(nfb>0) this->type|=EWBF_TM_FIXED_POINT;
 	this->nfb=nfb;
 	this->forceSync=false;
 	this->checkOverflow=true;
+	this->mask = (((1ULL<<width)-1) << shift);
 
-	TRACE_P_DEBUG("%s type=0x%0x nfb=%d, dVal=%f",name.c_str(),type,nfb,iniVal);
-	int i = 1;
-	for (; mask; mask >>= 1, i++)
-		this->width=i-shift;
+	getLimit(vmin,vmax);
 
-	if(this->type==EWBF_32FP) {
-		if((this->width > this->nfb)==false) TRACE_P_WARNING("%s Width (%d) must be superior than nbfp (%d)",getCName(),width,nfb);
-	}
-	else {
-		if((this->width >= this->nfb)==false) TRACE_P_WARNING("%s Width (%d) must be superior or equal than nbfp (%d)",getCName(),width,nfb);
-	}
-
+	if(nfb>0) { TRACE_P_DEBUG("%s type=0x%0x nfb=%d, dVal=%f (x%08x) [%f,%15f]",name.c_str(),type,nfb,iniVal,mask,vmin,vmax); }
+	else { TRACE_P_DEBUG("%s type=0x%0x nfb=%d, dVal=%f (x%08x) [%d,%d]",name.c_str(),type,nfb,iniVal,mask,(uint32_t)vmin,(uint32_t)vmax); }
 
 	if(pReg)
 	{
-		if(isinf(iniVal)) pReg->addField(this);
+		bool added;
+		if(isinf(iniVal)) added=pReg->addField(this,index);
 		else
 		{
 			float dVal32=(float)iniVal;
 			this->convert(&dVal32,false);
-			pReg->addField(this,true);
+			added=pReg->addField(this,index,true);
 		}
+		if(added==false) this->pReg=NULL; //Remove linking
 	}
 }
+
+//EWBField::EWBField(EWBReg *pReg,const std::string &name, uint32_t mask)
+//{
+//	int i = 1;
+//	for (; mask; mask >>= 1, i++)
+//		this->width=i-shift;
+//}
+
 
 /**
  * Empty destructor
@@ -88,6 +103,49 @@ EWBField::~EWBField()
 
 }
 
+void EWBField::getLimit(float &fmin, float &fmax)
+{
+	float ftmp;
+	uint32_t data, val;
+	bool checkOF_old;
+	switch(type)
+	{
+	case EWBF_32U:				//Unsigned integer
+		fmin=0.f;
+		fmax=(float)((1ULL<<width)-1);
+		if(width>30) fmax=(float)((1ULL<<30)-1);
+		break;
+	case EWBF_32I:				//MSB Signed Integer
+		fmin=-((float)(1ULL<<(width-1))-1);
+		fmax=(float)(1ULL<<(width-1))-1;
+		break;
+	case EWBF_TM_SIGN_2COMP:	//2C Signed Integer
+		fmin=-(float)(1ULL<<(width-1));
+		fmax=(float)(1ULL<<(width-1))-1;
+		break;
+	case EWBF_TM_FIXED_POINT: 	//Unsigned Fixed Point (0x4)
+		fmin=0;
+		fmax=(float)(1ULL<<(width-nfb));
+		fmax-=1.f/(1ULL<<nfb);
+		break;
+	case EWBF_32FP: 			//MSB Signed Fixed point (0x5)
+		fmax=(float)(1ULL<<(width-1-nfb));
+		fmax-=1.f/(1ULL<<nfb);
+		fmin=-fmax;
+		break;
+	case EWBF_32F2C:			//2C Signed Fixed point (0x6)
+		checkOF_old=checkOverflow;
+		checkOverflow=false;
+		val=(1ULL<<(width-1));
+		this->regCvt(&val,&data,false);
+		if(this->regCvt(&ftmp,&data,true)) fmin=ftmp;
+		val--;
+		this->regCvt(&val,&data,false);
+		if(this->regCvt(&ftmp,&data,true)) fmax=ftmp;
+		checkOverflow=checkOF_old;
+		break;
+	}
+}
 
 
 /**
@@ -138,6 +196,21 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 	bool ret=false;
 	uint32_t fixed, utmp;
 	float ftmp;
+	if(to_value==false)
+	{
+		if(checkOverflow==false) ftmp=*value;
+		else
+		{
+			if(*value>vmax)
+				ftmp=vmax;
+			else if(*value<vmin)
+				ftmp=vmin;
+			else
+				ftmp=*value;
+		}
+	}
+
+
 	switch(type)
 	{
 	case EWBF_32U:
@@ -148,7 +221,7 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 		}
 		else
 		{
-			fixed=(uint32_t)round(*value);
+			fixed=(uint32_t)round(ftmp);
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;
@@ -162,8 +235,8 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 		}
 		else
 		{
-			fixed=(uint32_t)round(fabs(*value)) & ~utmp;
-			if(*value<0) fixed |=utmp;
+			fixed=(uint32_t)round(fabs(ftmp)) & ~utmp;
+			if(ftmp<0) fixed |=utmp;
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;
@@ -181,8 +254,8 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 		}
 		else
 		{
-			fixed=(uint32_t)round(fabs(*value));
-			if(*value<0) fixed=(~(fixed))+1; 				//convert absolute signed fixed point to 2C fixed point when value <0
+			fixed=(uint32_t)round(fabs(ftmp));
+			if(ftmp<0) fixed=(~(fixed))+1; 				//convert absolute signed fixed point to 2C fixed point when value <0
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;
@@ -194,7 +267,7 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 		}
 		else
 		{
-			fixed=(uint32_t)(round(*value * pow(2,this->nfb)));
+			fixed=(uint32_t)(round(ftmp * pow(2,this->nfb)));
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;
@@ -208,8 +281,8 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 		}
 		else
 		{
-			fixed=(uint32_t)(round(fabs(*value) * pow(2,this->nfb))) & ~utmp;
-			if(*value<0) fixed |=utmp;
+			fixed=(uint32_t)(round(fabs(ftmp) * pow(2,this->nfb))) & ~utmp;
+			if(ftmp<0) fixed |=utmp;
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;
@@ -227,15 +300,8 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 		}
 		else
 		{
-			ftmp=fabs(*value);
-			if(checkOverflow)
-			{
-				utmp=1 << ((this->width-this->nfb)-1);
-				if(ftmp >= utmp)
-					ftmp=(float)utmp;
-			}
-			fixed=round((double)ftmp * (double)(1ULL << this->nfb)); //convert to signed fixed point using absolute value
-			if(*value<0) fixed=(~(fixed))+1; 				//convert absolute signed fixed point to 2C fixed point when value <0
+			fixed=round((double)fabs(ftmp) * (double)(1ULL << this->nfb)); //convert to signed fixed point using absolute value
+			if(ftmp<0) fixed=(~(fixed))+1; 				//convert absolute signed fixed point to 2C fixed point when value <0
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;

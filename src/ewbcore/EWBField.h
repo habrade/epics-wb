@@ -22,22 +22,25 @@
 //! Shortcut for WBReg constructor arguments
 #define WB2_REG_ARGS(pname,rname) \
 		WB2_TOKENPASTING_REG(pname,rname,_PREFIX),\
-		WB2_TOKENPASTING_REG(pname,rname,)
+		WB2_TOKENPASTING_REG(pname,rname,), \
+		WB2_TOKENPASTING_REG(pname,rname,_NFIELDS), \
+		WB2_TOKENPASTING_REG(pname,rname,_NAME)
 
 //! Shortcut for WBField constructor arguments
 #define WB2_FIELD_ARGS(pname,rname,fname) \
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_PREFIX),\
-		WB2_TOKENPASTING_FIELD(pname,rname,fname,_MASK),\
+		WB2_TOKENPASTING_FIELD(pname,rname,fname,_SIZE),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_SHIFT),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_ACCESS),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_DESC), \
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_SIGN),\
-		WB2_TOKENPASTING_FIELD(pname,rname,fname,_NBFP)
+		WB2_TOKENPASTING_FIELD(pname,rname,fname,_NBFP),\
+		WB2_TOKENPASTING_FIELD(pname,rname,fname,_INDEX)
 
 //! Shortcut for WBField constructor arguments
 #define WB2_FIELD_ARGS_VA(pname,rname,fname,...) \
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_PREFIX),\
-		WB2_TOKENPASTING_FIELD(pname,rname,fname,_MASK),\
+		WB2_TOKENPASTING_FIELD(pname,rname,fname,_SIZE),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_SHIFT),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_ACCESS),\
 		WB2_TOKENPASTING_FIELD(pname,rname,fname,_DESC),\
@@ -61,9 +64,9 @@ class EWBField: public EWBParam {
 public:
 	friend std::ostream & operator<<(std::ostream & output, const EWBField &n);
 
-	EWBField(EWBReg *pReg,const std::string &name, uint32_t mask, uint8_t shift,
+	EWBField(EWBReg *pReg,const std::string &name, uint8_t width, uint8_t shift,
 			uint8_t mode=EWB_AM_RW, const std::string &desc="",
-			uint8_t signess=0, uint8_t nfb=0, double defVal=(1.0/0.0));
+			uint8_t signess=0, uint8_t nfb=0, int index=-1, double defVal=(1.0/0.0));
 
 	virtual ~EWBField();
 
@@ -90,11 +93,14 @@ public:
 	bool isValid(bool connected) const { return (pReg && pReg->isValid(connected)); }
 
 protected:
+	void getLimit(float &fmin, float &fmax);
+
 	uint32_t mask;		//!< Corresponding mask
 	uint8_t shift;		//!< Number of bit to be shift
 	uint8_t width;		//!< Width of the field
 	uint8_t nfb;		//!< Number of fraction bits
 	bool checkOverflow;	//!< Limit overflow during FP conversion
+	float vmin,vmax;		//!< Range that the user can use for this value
 
 private:
 	EWBReg *pReg; //! parent register which belong this field

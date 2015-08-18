@@ -199,13 +199,13 @@ TEST(EWBField,FullFixed)
 	uint32_t reg=0;
 
 	//Start playing with conversion
-	val=-0.999991;
+	val=-0.499999;
 	EXPECT_TRUE(f.regCvt(&val,&reg,false));
 	EXPECT_TRUE(f.regCvt(&valRbk,&reg,true));
 	EXPECT_NEAR(val,valRbk,valErr);
 
 	//Start playing with conversion
-	val= 0.999991;
+	val= 0.499999;
 	EXPECT_TRUE(f.regCvt(&val,&reg,false));
 	EXPECT_TRUE(f.regCvt(&valRbk,&reg,true));
 	EXPECT_NEAR(val,valRbk,valErr);
@@ -243,7 +243,6 @@ TEST(EWBField,Signess)
 	EXPECT_TRUE(fU.regCvt(&val,&reg,false));
 	EXPECT_TRUE(fU.regCvt(&valRbk,&reg,true));
 	EXPECT_NE(val,valRbk);
-	EXPECT_EQ(-val,valRbk);
 
 	EWBField f1=EWBField(NULL,WB2_FIELD_ARGS(TEST,BSIGN,SIGN1));
 	val=127;
@@ -262,7 +261,7 @@ TEST(EWBField,Signess)
 	EXPECT_TRUE(f1.regCvt(&val,&reg,false));
 	EXPECT_TRUE(f1.regCvt(&valRbk,&reg,true));
 	EXPECT_NE(val,valRbk);
-	EXPECT_EQ(0,valRbk);
+
 
 	//printf("x%x x%x\n",reg,regTmp);
 
@@ -297,7 +296,7 @@ TEST(EWBField,FixedSigness)
 	EXPECT_TRUE(fU.regCvt(&val,&reg,false));
 	EXPECT_TRUE(fU.regCvt(&valRbk,&reg,true));
 	EXPECT_NE(val,valRbk);
-	EXPECT_TRUE(valRbk>0);
+	EXPECT_TRUE(valRbk>=0);
 
 	EWBField f1=EWBField(NULL,WB2_FIELD_ARGS(TEST,BFIXED,SIGN1));
 	val=(1-step7);
@@ -325,17 +324,32 @@ TEST(EWBField,FixedSigness)
 
 
 
-//TEST(EWBField,Overflow)
-//{
-//	EWBField f(NULL,WB2_FIELD_ARGS(TEST,CSR,NUMBER));
-//	uint32_t val=28389;
-//	f.convert(&val,true);
-//Amp=-3;
-//EXPECT_TRUE(fA.regCvt(&Amp,&reg,false));
-//EXPECT_TRUE(fA.regCvt(&AmpRbk,&reg,true));
-//EXPECT_NEAR(Amp,AmpRbk,AmpErr);
+TEST(EWBField,Overflow)
+{
+	uint32_t reg=0;
+	float val,valRbk;
+	float step8=1/(256.f);
+	float step7=1/(128.f);
 
-//}
+	EWBField fA(NULL,WB2_FIELD_ARGS(TEST,ADC,AMP));
+	val=3;
+	EXPECT_TRUE(fA.regCvt(&val,&reg,false));
+	EXPECT_TRUE(fA.regCvt(&valRbk,&reg,true));
+	EXPECT_NE(2,valRbk);
+	EXPECT_NEAR(2,valRbk,0.01);
+
+
+	EWBField fU=EWBField(NULL,WB2_FIELD_ARGS(TEST,BSIGN,U));
+	val=-128;
+	EXPECT_TRUE(fU.regCvt(&val,&reg,false));
+	EXPECT_TRUE(fU.regCvt(&valRbk,&reg,true));
+	EXPECT_EQ(0,valRbk);
+
+	val=256;
+	EXPECT_TRUE(fU.regCvt(&val,&reg,false));
+	EXPECT_TRUE(fU.regCvt(&valRbk,&reg,true));
+	EXPECT_EQ(255,valRbk);
+}
 
 
 
