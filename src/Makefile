@@ -14,57 +14,21 @@
 ## ensure the GNU Lesser General Public License version 2.1 requirements
 ## will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
 ########################################################################
+TOP = ..
+include $(TOP)/configure/CONFIG
 
-## Cross Compile
-CC =		$(CROSS_COMPILE)g++
-LD =		$(CROSS_COMPILE)ld
-AR =		$(CROSS_COMPILE)ar
-OBJDUMP =	$(CROSS_COMPILE)objdump
-OBJCOPY =	$(CROSS_COMPILE)objcopy
-SIZE =		$(CROSS_COMPILE)size
+##Test with the flags (DOESN'T WORK)
+USR_FLAGS=-DDEBUG_NO_WAY
+CXXFLAGS=-Wall -g -DTRACE_STDERR -Wno-format
+USR_CXXFLAGS +=$(CXXFLAGS)
+USR_CXXFLAGS +=-Wno-maybe-uninitialized
 
-## Config
--include $(CURDIR)/.config
+DIRS += ewbcore
 
-## Obtain the version ($ is replaced by $$)
-VERSION = $(shell git describe --always --dirty=+ | sed  's;^.*-\([v0-9\.]*\)\([a-z0-9\-+]*\)$$;\1\2;' )
-DATE	= $(shell date +"%d %b. %Y")
+DIRS += ewbbridge
+ewbbridge_DEPEND_DIRS = ewbcore
 
-## Flags
-INCLUDE_DIR=-Iewbcore/ -Iewbdrige/ -Iasynwb
-CXXFLAGS=-Wall -g -O3 -DTRACE_STDERR -std=c++11
+DIRS += ewbasyn
+ewbbridge_DEPEND_DIRS = ewbcore ewbbridge
 
-## File processing
-ODIR=output/
-
-SRC_MAIN=$(wildcard ewbcore/*.cpp)
-OBJ_MAIN=$(addprefix $(ODIR), $(SRC_MAIN:.cpp=.o))
-
-all: main 
-
-ODIR_%: $(ODIR)$(subst ODIR_,,$@)
-	mkdir -p $(ODIR)$(subst ODIR_,,$@)
-	@echo ""
-	@echo ":==================================================================================================================>"
-	@echo ""
-	
-main: ODIR_ewbcore $(ODIR)libewbmain.a
-	@echo "----> libewbmain.a OK"
-	
-output/libewbmain.a: $(OBJ_MAIN)
-	$(AR) rc $@ $^ $(LDFLAGS)
-
-bridge:
-
-asynwb:
-
-
-output/%.o:		%.cpp
-	${CC} $(CXXFLAGS) $(INCLUDE_DIR) $(LIB_DIR) -c $*.cpp -o $@
-	
-
-clean_%:
-	rm -Rvf $(ODIR)$(subst clean_,,$@)
-	
-clean: clean_ewbcore 
-
+include $(TOP)/configure/RULES_DIRS

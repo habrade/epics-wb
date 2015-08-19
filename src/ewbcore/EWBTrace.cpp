@@ -5,7 +5,7 @@
  *      Author: Benoit Rat (benoit<AT>sevensols.com)
  */
 
-#include "EWBTrace.h"
+#include <EWBTrace.h>
 
 #include <string>
 #include <vector>

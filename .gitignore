@@ -53,14 +53,20 @@ Thumbs.db
 .cproject
 .settings/*
 
-# Project specific #
-####################
+
+# EPICS           #
+###################
 O.*/
 configure/
+lib/
+include/
+*.depends
+
+# Project specific #
+####################
 doc/html
 doc/latex
 doc/man
-
 
 
 

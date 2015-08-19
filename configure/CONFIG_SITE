@@ -1,0 +1,8 @@
+# CONFIG_SITE - site-specific build configuration settings
+
+# To restrict the architectures to cross-compile for, set this:
+#CROSS_COMPILER_TARGET_ARCHS = arm-linux-gnueabi 
+
+# To install somewhere other than $(TOP) set this:
+#INSTALL_LOCATION_APP = <install path>
+

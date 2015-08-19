@@ -21,8 +21,8 @@
 #include <epicsExport.h>
 #include <iocsh.h>
 
-#include "asynWBPortDrvr.h"
-#include "awbpd_trace.h"
+#include "EWBAsynPortDrvr.h"
+#include "EWBTrace.h"
 #define TRACE_P_VDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
 #define TRACE_P_VVDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
 
@@ -36,7 +36,7 @@
  * \param[in] max_nprm Maximum number of scope parameters
  *
  **/
-asynWBPortDrvr::asynWBPortDrvr(const char *portName,int max_nprm)
+EWBAsynPortDrvr::EWBAsynPortDrvr(const char *portName,int max_nprm)
 : asynPortDriver(portName,
 		1,
 		max_nprm,
@@ -46,20 +46,20 @@ asynWBPortDrvr::asynWBPortDrvr(const char *portName,int max_nprm)
 		1, /* Autoconnect */
 		0, /* Default priority */
 		0), /* Default stack size*/
-		pRoot(NULL), pMemCon(NULL), driverName(portName)
+		pRoot(NULL), driverName(portName)
 {
 
 
 	//Reserve our space for param list
-	AsynWBField afld;
-	afld.pFld=NULL;
+	EWBAsynPrm afld;
+	afld.pPrm=NULL;
 	afld.syncmode=AWB_SYNC_DERIVED; //when not define we derive
-	fldPrms = std::vector<AsynWBField>(max_nprm,afld);
+	fldPrms = std::vector<EWBAsynPrm>(max_nprm,afld);
 
 	//Create the only generic parameters to block sync or not (0: NoneBlock, 1:BlockRead, 2:BlockWrite, 3: All block)
 	createParam("AWBPD_BlockSync", asynParamInt32,&P_BlkSyncIdx);
 	setIntegerParam(P_BlkSyncIdx,0);
-	syncNow=WB_AM_RW;
+	syncNow=EWBSync::EWB_AM_RW;
 }
 
 /**
@@ -68,12 +68,9 @@ asynWBPortDrvr::asynWBPortDrvr(const char *portName,int max_nprm)
  * It only delete the WBMemCon pointer in the case it has been
  * used.
  */
-asynWBPortDrvr::~asynWBPortDrvr()
+EWBAsynPortDrvr::~EWBAsynPortDrvr()
 {
 	fprintf(stderr,"0x%x\n", (uint32_t)this);
-
-	if(pMemCon) delete pMemCon;
-	pMemCon=NULL;
 
 	if(pRoot) delete pRoot;
 	pRoot=NULL;
@@ -91,39 +88,43 @@ asynWBPortDrvr::~asynWBPortDrvr()
  * \param[in] amode Access mode (R, W, R/W)
  * \return Returns a asynSuccess if everything is okay.
  */
-asynStatus asynWBPortDrvr::syncPending(WBAccMode amode)
+asynStatus EWBAsynPortDrvr::syncPending(EWBSync::AMode amode)
 {
-	WBField* fld;
-	WBReg *reg=NULL;
+	EWBParam* pPrm;
+	EWBField* pFld;
+	EWBReg *reg=NULL;
 	AsynStatusObj status = asynSuccess;
 
 	//First find which fldParams needs to be sync
 	std::vector<int> tmpList;
-	for(int i=0;i<fldPrms.size();i++)
+	for(size_t i=0;i<fldPrms.size();i++)
 	{
-		fld=fldPrms[i].pFld;
-		if(fld && fld->getReg() && fld->getReg()->isToSync())
+		pPrm=fldPrms[i].pPrm;
+		if(pPrm && pPrm->isValid(0) && pPrm->isToSync())
 		{
-			tmpList.push_back(i);
+			tmpList.push_back((int)i);
 		}
 	}
 	//Then obtain the registers of these field params
-	for(int i=0;i<tmpList.size();i++)
+	for(size_t i=0;i<tmpList.size();i++)
 	{
-		fld=fldPrms[tmpList[i]].pFld;
-		reg=(WBReg*)fld->getReg();
-		//Sync them
-		if(reg->isToSync())
+		pFld=fldPrms[tmpList[i]].pPrm->castField();
+		if(pFld)
 		{
-			TRACE_P_DEBUG("Syncing Reg>: %s (@0x%08X) 0x%08x",
-					reg->getCName(),reg->getOffset(true),reg->getData());
-			status&=reg->sync(pMemCon,amode);
-			//Finally update the
+			reg=(EWBReg*)pFld->getReg();
+			//Sync them
+			if(reg->isToSync())
+			{
+				TRACE_P_DEBUG("Syncing Reg>: %s (@0x%08X) 0x%08x",
+						reg->getCName(),reg->getOffset(true),reg->getData());
+				status&=reg->sync(amode);
+				//Finally update the
+			}
+			if(pFld->getType() && EWBField::EWBF_TM_FIXED_POINT)
+				setDoubleParam(tmpList[i],pFld->getFloat());
+			else
+				setIntegerParam(tmpList[i],pFld->getU32());
 		}
-		if(fld->getType() && WBField::WBF_TM_FIXED_POINT)
-			setDoubleParam(tmpList[i],fld->getFloat());
-		else
-			setIntegerParam(tmpList[i],fld->getU32());
 	}
 
 	return status;
@@ -142,7 +143,7 @@ asynStatus asynWBPortDrvr::syncPending(WBAccMode amode)
  * adding this parameter would exceed the size of the parameter list and asynError is the WBField is not valid.
  * \see AsynWBSync for the type of synchronization
  */
-asynStatus asynWBPortDrvr::createParam(WBField* fld,int *pIndex, int syncmode)
+asynStatus EWBAsynPortDrvr::createParam(EWBField* fld,int *pIndex, int syncmode)
 {
 	std::stringstream ss;
 
@@ -155,7 +156,7 @@ asynStatus asynWBPortDrvr::createParam(WBField* fld,int *pIndex, int syncmode)
 	else
 		ss << fld->getReg()->getName() << "_" << fld->getName();
 
-	this->createParam(ss.str().c_str(),fld, pIndex, syncmode);
+	return this->createParam(ss.str().c_str(),fld, pIndex, syncmode);
 }
 
 
@@ -169,17 +170,19 @@ asynStatus asynWBPortDrvr::createParam(WBField* fld,int *pIndex, int syncmode)
  * adding this parameter would exceed the size of the parameter list and asynError is the WBField is not valid.
  * \see AsynWBSync for the type of synchronization
  */
-asynStatus asynWBPortDrvr::createParam(const char* name, WBField* fld,int *pIndex, int syncmode)
+asynStatus EWBAsynPortDrvr::createParam(const char* name, EWBParam* pPrm,int *pIndex, int syncmode)
 {
 	int tmp;
 	asynStatus status=asynError;
 	asynParamType type;
 	if(pIndex) *pIndex=-1;
 
-	if(fld && fld->getReg() && fld->getReg()->getPrtNode())
+	if(pPrm && pPrm->isValid())
 	{
 		pIndex=(pIndex)?pIndex:&tmp;
-		if(fld->getType() && WBField::WBF_TM_FIXED_POINT)
+		if(pPrm->getType() == EWBParam::EWBF_STRING)
+			type=asynParamOctet;
+		else if(pPrm->getType() && EWBParam::EWBF_TM_FIXED_POINT)
 			type=asynParamFloat64;
 		else
 			type=asynParamInt32;
@@ -189,19 +192,26 @@ asynStatus asynWBPortDrvr::createParam(const char* name, WBField* fld,int *pInde
 		status=asynPortDriver::createParam(name,type,pIndex);
 		if(status==asynSuccess)
 		{
-			fldPrms[*pIndex].pFld=fld;
+			fldPrms[*pIndex].pPrm=pPrm;
 			fldPrms[*pIndex].syncmode=syncmode;
-			if(fld->getType() && WBField::WBF_TM_FIXED_POINT)
-				setDoubleParam(*pIndex,fld->getFloat());
+			if(pPrm->getType() == EWBParam::EWBF_STRING) {
+				//setStringParam(*pIndex,((EWBParamStr*)pPrm)->getCValue());
+				}
+			else if(pPrm->getType() && EWBParam::EWBF_TM_FIXED_POINT)
+				setDoubleParam(*pIndex,((EWBField*)pPrm)->getFloat());
 			else
-				setIntegerParam(*pIndex,fld->getU32());
+				setIntegerParam(*pIndex,((EWBField*)pPrm)->getU32());
 		}
 
-		TRACE_P_DEBUG("%10s#%02d: 0x%08X (msync=%d, %s) <= %s/%s_%s (PV/Fld)",
-				fld->getReg()->getPrtNode()->getCName(),*pIndex,
-				fld->getReg()->getOffset(true),syncmode,
-				(type==asynParamInt32)?"I32":"U64",name,
-						fld->getReg()->getCName(),fld->getCName());
+		EWBField *pFld=pPrm->castField();
+		if(pFld)
+		{
+			TRACE_P_DEBUG("%10s#%02d: 0x%08X (msync=%d, %s) <= %s/%s_%s (PV/Fld)",
+					pFld->getReg()->getPrtNode()->getCName(),*pIndex,
+					pFld->getReg()->getOffset(true),syncmode,
+					(type==asynParamInt32)?"I32":"U64",name,
+							pFld->getReg()->getCName(),pFld->getCName());
+		}
 	}
 	return status;
 }
@@ -219,7 +229,7 @@ asynStatus asynWBPortDrvr::createParam(const char* name, WBField* fld,int *pInde
  * adding this parameter would exceed the size of the parameter list and asynError is the syncmode is not valid.
  * \see AsynWBSync for the type of synchronization
  */
-asynStatus asynWBPortDrvr::createParam(const char* name, asynParamType type,int *pIndex,int syncmode)
+asynStatus EWBAsynPortDrvr::createParam(const char* name, asynParamType type,int *pIndex,int syncmode)
 {
 	int tmp;
 	asynStatus status=asynError;
@@ -232,7 +242,7 @@ asynStatus asynWBPortDrvr::createParam(const char* name, asynParamType type,int 
 	status=asynPortDriver::createParam(name,type,pIndex);
 	if( status==asynSuccess)
 	{
-		fldPrms[*pIndex].pFld=NULL;
+		fldPrms[*pIndex].pPrm=NULL;
 		fldPrms[*pIndex].syncmode=syncmode;
 		TRACE_P_DEBUG("%10s#%02d: type=0x%x",name,*pIndex,type);
 	}
@@ -248,7 +258,7 @@ asynStatus asynWBPortDrvr::createParam(const char* name, asynParamType type,int 
  *
  * If the name was not found in the paramList it returns -1
  */
-int asynWBPortDrvr::getParamIndex(const char *name)
+int EWBAsynPortDrvr::getParamIndex(const char *name)
 {
 	int index;
 	if(asynPortDriver::findParam(name, &index)==asynSuccess) return index;
@@ -267,12 +277,13 @@ int asynWBPortDrvr::getParamIndex(const char *name)
  * \param[out] value The value read.
  * \return asynSuccess if okay, asynDisable if derived and another error code otherwise.
  */
-asynStatus asynWBPortDrvr::readInt32(asynUser* pasynUser, epicsInt32* value)
+asynStatus EWBAsynPortDrvr::readInt32(asynUser* pasynUser, epicsInt32* value)
 {
 	int function = pasynUser->reason;
 	asynStatus status = asynDisabled;
 	const char *paramName;
-	AsynWBField aWF = fldPrms[function];
+	EWBAsynPrm aWF = fldPrms[function];
+	EWBField *pFld=NULL;
 	uint32_t u32val;
 
 	// Fetch the parameter string name for possible use in debugging
@@ -285,22 +296,27 @@ asynStatus asynWBPortDrvr::readInt32(asynUser* pasynUser, epicsInt32* value)
 	//Sync from WB structure
 	if(aWF.syncmode==AWB_SYNC_WBSTRUCT || aWF.syncmode==AWB_SYNC_DEVICE)
 	{
+
 		//Check if we have an existing association
-		TRACE_CHECK_PTR(aWF.pFld,asynError);
-		TRACE_CHECK_PTR(aWF.pFld->getReg(),asynError);
+		TRACE_CHECK_PTR(aWF.pPrm,asynError);
+		TRACE_CHECK_PTR(aWF.pPrm->isValid(),asynError);
+
 
 		//Sync from device memory
-		if(aWF.syncmode==AWB_SYNC_DEVICE && (syncNow & WB_AM_R))
-			aWF.pFld->sync(pMemCon,WB_AM_R);
+		if(aWF.syncmode==AWB_SYNC_DEVICE && (syncNow & EWBSync::EWB_AM_R))
+			aWF.pPrm->sync(EWBSync::EWB_AM_R);
 
-		//Convert the WBField to a float
-		aWF.pFld->convert(&u32val,true);
-		*value=(epicsInt32)u32val;
+		if((pFld=aWF.pPrm->castField())!=NULL)
+		{
+			//Convert the WBField to a float
+			pFld->convert(&u32val,true);
+			*value=(epicsInt32)u32val;
+		}
 
 		TRACE_P_VVDEBUG("@0x%08X %s.%s : 0x%08x (val=%d)",
-				aWF.pFld->getReg()->getOffset(true),
-				aWF.pFld->getReg()->getCName(),aWF.pFld->getCName(),
-				aWF.pFld->getReg()->getData(),*value);
+				aWF.pPrm->getReg()->getOffset(true),
+				aWF.pPrm->getReg()->getCName(),aWF.pPrm->getCName(),
+				aWF.pPrm->getReg()->getData(),*value);
 
 		//And set value to the parameters list
 		status = (asynStatus) setIntegerParam(function,*value);
@@ -339,13 +355,14 @@ asynStatus asynWBPortDrvr::readInt32(asynUser* pasynUser, epicsInt32* value)
  * \param[out] value The value read.
  * \return asynSuccess if okay, asynDisable if derived and another error code otherwise.
  **/
-asynStatus asynWBPortDrvr::readFloat64(asynUser* pasynUser,
+asynStatus EWBAsynPortDrvr::readFloat64(asynUser* pasynUser,
 		epicsFloat64* value)
 {
 	int function = pasynUser->reason;
 	asynStatus status = asynDisabled;
 	const char *paramName;
-	AsynWBField aWF = fldPrms[function];
+	EWBAsynPrm aWF = fldPrms[function];
+	EWBField *pFld=NULL;
 	float f32val;
 
 	// Fetch the parameter string name for possible use in debugging
@@ -359,21 +376,24 @@ asynStatus asynWBPortDrvr::readFloat64(asynUser* pasynUser,
 	if(aWF.syncmode==AWB_SYNC_WBSTRUCT || aWF.syncmode==AWB_SYNC_DEVICE)
 	{
 		//Check if we have an existing association
-		TRACE_CHECK_PTR(aWF.pFld,asynError);
-		TRACE_CHECK_PTR(aWF.pFld->getReg(),asynError);
+		TRACE_CHECK_PTR(aWF.pPrm,asynError);
+		TRACE_CHECK_PTR(aWF.pPrm->isValid(),asynError);
 
 		//Sync WBField using the connector from device memory
-		if(aWF.syncmode==AWB_SYNC_DEVICE && (syncNow & WB_AM_R))
-			aWF.pFld->sync(pMemCon,WB_AM_R);
+		if(aWF.syncmode==AWB_SYNC_DEVICE && (syncNow & EWBSync::EWB_AM_R))
+			aWF.pPrm->sync(EWBSync::EWB_AM_R);
 
-		//Convert the WBField to a float
-		aWF.pFld->convert(&f32val,true);
-		*value=(epicsFloat64)f32val;
+		if((pFld=aWF.pPrm->castField())!=NULL)
+		{
+			//Convert the WBField to a float
+			pFld->convert(&f32val,true);
+			*value=(epicsFloat64)f32val;
+		}
 
 		TRACE_P_VVDEBUG("@0x%08X %s.%s : 0x%08x (val=%f)",
-				aWF.pFld->getReg()->getOffset(true),
-				aWF.pFld->getReg()->getCName(),aWF.pFld->getCName(),
-				aWF.pFld->getReg()->getData(),f32val);
+				aWF.pPrm->getReg()->getOffset(true),
+				aWF.pPrm->getReg()->getCName(),aWF.pPrm->getCName(),
+				aWF.pPrm->getReg()->getData(),f32val);
 
 		//And set value to the parameters list
 		status = (asynStatus) setDoubleParam(function,*value);
@@ -410,13 +430,14 @@ asynStatus asynWBPortDrvr::readFloat64(asynUser* pasynUser,
  * \param[in] value Value to write.
  * \return asynSuccess if okay, asynDisable if derived and another error code otherwise.
  **/
-asynStatus asynWBPortDrvr::writeInt32(asynUser* pasynUser, epicsInt32 value)
+asynStatus EWBAsynPortDrvr::writeInt32(asynUser* pasynUser, epicsInt32 value)
 {
 	int function = pasynUser->reason;
 	bool ret;
 	asynStatus status = asynDisabled;
 	const char *paramName;
-	AsynWBField aWF = fldPrms[function];
+	EWBAsynPrm aWF = fldPrms[function];
+	EWBField *pFld=NULL;
 
 	// Fetch the parameter string name for possible use in debugging
 	getParamName(function, &paramName);
@@ -428,45 +449,46 @@ asynStatus asynWBPortDrvr::writeInt32(asynUser* pasynUser, epicsInt32 value)
 	if(aWF.syncmode==AWB_SYNC_DEVICE)
 	{
 		//Get the sync mode
-		TRACE_CHECK_PTR(aWF.pFld,asynError);
-		TRACE_CHECK_PTR(aWF.pFld->getReg(),asynError);
+		TRACE_CHECK_PTR(aWF.pPrm,asynError);
+		TRACE_CHECK_PTR(aWF.pPrm->isValid(),asynError);
 
 		//Convert the value to WBField value
 		uint32_t u32val=value;
 
-		aWF.pFld->convert(&u32val,false);
+		if((pFld=aWF.pPrm->castField())!=NULL)
+			pFld->convert(&u32val,false);
 
 		TRACE_P_VVDEBUG("@0x%08X %s.%s : %08x",
-				aWF.pFld->getReg()->getOffset(true),
-				aWF.pFld->getReg()->getCName(),aWF.pFld->getCName(),
-				aWF.pFld->getReg()->getData());
+				aWF.pPrm->getReg()->getOffset(true),
+				aWF.pPrm->getReg()->getCName(),aWF.pPrm->getCName(),
+				aWF.pPrm->getReg()->getData());
 
 		//Finally sync WBField using the connector to memory
-		if(syncNow & WB_AM_W)
+		if(syncNow & EWBSync::EWB_AM_W)
 		{
-			ret=aWF.pFld->sync(pMemCon,WB_AM_W);
+			ret=aWF.pPrm->sync(EWBSync::EWB_AM_W);
 			if(ret==false) return asynError;
 		}
-		else aWF.pFld->setToSync();
+		else aWF.pPrm->setToSync();
 
 		TRACE_P_VVDEBUG("===>>>>>>>>>>>>>>@0x%08X %s.%s : %08x",
-				aWF.pFld->getReg()->getOffset(true),
-				aWF.pFld->getReg()->getCName(),aWF.pFld->getCName(),
-				aWF.pFld->getReg()->getData());
+				aWF.pPrm->getReg()->getOffset(true),
+				aWF.pPrm->getReg()->getCName(),aWF.pPrm->getCName(),
+				aWF.pPrm->getReg()->getData());
 	}
 	else if(function==P_BlkSyncIdx)
 	{
 		//When setting back to zeros we need to sync pending registers
-		WBAccMode syncMode=(WBAccMode)((~value) & WB_AM_RW); //syncMode is the inverse of block value
-		if(value==0 && syncNow!=WB_AM_RW) status = this->syncPending(syncMode);
+		EWBSync::AMode syncMode=(EWBSync::AMode)((~value) & EWBSync::EWB_AM_RW); //syncMode is the inverse of block value
+		if(value==0 && syncNow!=EWBSync::EWB_AM_RW) status = this->syncPending(syncMode);
 		TRACE_P_INFO("Syncing Mode: Old=%s%s (%d) => New=%s%s (%d) ... block value=%d",
-				(syncNow&WB_AM_R)?"R":"", (syncNow& WB_AM_W)?"W":"", syncNow,
-						(syncMode&WB_AM_R)?"R":"", (syncMode& WB_AM_W)?"W":"",syncMode,value);
+				(syncNow&EWBSync::EWB_AM_R)?"R":"", (syncNow& EWBSync::EWB_AM_W)?"W":"", syncNow,
+						(syncMode&EWBSync::EWB_AM_R)?"R":"", (syncMode& EWBSync::EWB_AM_W)?"W":"",syncMode,value);
 		syncNow=syncMode;
 	}
 
 	// Set the parameter in the parameter library
-	if((syncNow & WB_AM_W) || aWF.syncmode!=AWB_SYNC_DEVICE)
+	if((syncNow & EWBSync::EWB_AM_W) || aWF.syncmode!=AWB_SYNC_DEVICE)
 		status = (asynStatus) setIntegerParam(function, value);
 
 
@@ -496,14 +518,15 @@ asynStatus asynWBPortDrvr::writeInt32(asynUser* pasynUser, epicsInt32 value)
  * \param[in] value Value to write.
  * \return asynSuccess if okay, asynDisable if derived and another error code otherwise.
  **/
-asynStatus asynWBPortDrvr::writeFloat64(asynUser* pasynUser,
+asynStatus EWBAsynPortDrvr::writeFloat64(asynUser* pasynUser,
 		epicsFloat64 value)
 {
 	int function = pasynUser->reason;
 	bool ret;
 	asynStatus status = asynDisabled;
 	const char *paramName;
-	AsynWBField aWF = fldPrms[function];
+	EWBAsynPrm aWF = fldPrms[function];
+	EWBField *pFld=NULL;
 
 	// Fetch the parameter string name for possible use in debugging
 	getParamName(function, &paramName);
@@ -515,28 +538,29 @@ asynStatus asynWBPortDrvr::writeFloat64(asynUser* pasynUser,
 	if(aWF.syncmode==AWB_SYNC_DEVICE)
 	{
 		//Check if we have an existing association
-		TRACE_CHECK_PTR(aWF.pFld,asynError);
-		TRACE_CHECK_PTR(aWF.pFld->getReg(),asynError);
+		TRACE_CHECK_PTR(aWF.pPrm,asynError);
+		TRACE_CHECK_PTR(aWF.pPrm->isValid(),asynError);
 
 		//Concert the value to WBField value
 		float f32val=value;
-		aWF.pFld->convert(&f32val,false);
+		pFld=aWF.pPrm->castField();
+		if(pFld) pFld->convert(&f32val,false);
 
 		//Finally sync WBField using the connector to memory
-		if(syncNow & WB_AM_W)
+		if(syncNow & EWBSync::EWB_AM_W)
 		{
-			ret=aWF.pFld->sync(pMemCon,WB_AM_W);
+			ret=aWF.pPrm->sync(EWBSync::EWB_AM_W);
 			if(ret==false) return asynError;
 		}
-		else aWF.pFld->setToSync();
+		else aWF.pPrm->setToSync();
 
 		//And readback from value
-		aWF.pFld->convert(&f32val,true);
+		if(pFld) pFld->convert(&f32val,true);
 		value=f32val;
 	}
 
 	// Set the parameter in the parameter library
-	if((syncNow & WB_AM_W) || aWF.syncmode!=AWB_SYNC_DEVICE)
+	if((syncNow & EWBSync::EWB_AM_W) || aWF.syncmode!=AWB_SYNC_DEVICE)
 		status = (asynStatus) setDoubleParam(function, value);
 
 	//Do callbacks so higher layers see any changes
@@ -565,13 +589,12 @@ asynStatus asynWBPortDrvr::writeFloat64(asynUser* pasynUser,
  * \param[in] maxChar The maximum size that our string can use
  * \param[out] nActual The number of character of the string written.
  */
-asynStatus asynWBPortDrvr::writeOctet(asynUser *pasynUser, const char *value, size_t maxChars,size_t *nActual)
+asynStatus EWBAsynPortDrvr::writeOctet(asynUser *pasynUser, const char *value, size_t maxChars,size_t *nActual)
 {
 	int function = pasynUser->reason;
-	bool ret;
 	asynStatus status = asynDisabled;
 	const char *paramName;
-	AsynWBField aWF = fldPrms[function];
+	EWBAsynPrm aWF = fldPrms[function];
 
 	// Fetch the parameter string name for possible use in debugging
 	getParamName(function, &paramName);
@@ -606,13 +629,13 @@ asynStatus asynWBPortDrvr::writeOctet(asynUser *pasynUser, const char *value, si
  * \param[out] nActual The number of character of the string read.
  * \param[out] eomReaseon ???
  */
-asynStatus asynWBPortDrvr::readOctet(asynUser *pasynUser, char *value, size_t maxChars,
+asynStatus EWBAsynPortDrvr::readOctet(asynUser *pasynUser, char *value, size_t maxChars,
 		size_t *nActual, int *eomReason)
 {
 	int function = pasynUser->reason;
 	asynStatus status = asynSuccess;
 	const char *paramName;
-	AsynWBField aWF = fldPrms[function];
+	EWBAsynPrm aWF = fldPrms[function];
 
 	// Fetch the parameter string name for possible use in debugging
 	getParamName(function, &paramName);
@@ -639,36 +662,36 @@ asynStatus asynWBPortDrvr::readOctet(asynUser *pasynUser, char *value, size_t ma
 
 
 
-bool asynWBPortDrvr::cvtWBNodetoPrmList(WBNode *node)
-{
-	WBReg *reg=NULL;
-	uint32_t u32val;
-	float f32val;
-	bool ret=true;
-
-	TRACE_CHECK_PTR(node,false);
-
-	for(size_t i=0;i<fldPrms.size();i++)
-	{
-		if(fldPrms[i].pFld==NULL) continue;
-
-		while((reg=node->getNextReg(reg))!=NULL)
-		{
-			if(reg!=fldPrms[i].pFld->getReg()) continue;
-
-			if(fldPrms[i].pFld->getType()==WBField::WBF_32U)
-			{
-				ret &= fldPrms[i].pFld->convert(&u32val,true);
-				ret &= setIntegerParam(i,u32val);
-			}
-			else
-			{
-				ret &= fldPrms[i].pFld->convert(&f32val,true);
-				ret &= setDoubleParam(i,f32val);
-			}
-		}
-	}
-	return ret;
-}
+//bool EWBAsynPortDrvr::cvtWBNodetoPrmList(WBNode *node)
+//{
+//	WBReg *reg=NULL;
+//	uint32_t u32val;
+//	float f32val;
+//	bool ret=true;
+//
+//	TRACE_CHECK_PTR(node,false);
+//
+//	for(size_t i=0;i<fldPrms.size();i++)
+//	{
+//		if(fldPrms[i].pFld==NULL) continue;
+//
+//		while((reg=node->getNextReg(reg))!=NULL)
+//		{
+//			if(reg!=fldPrms[i].pFld->getReg()) continue;
+//
+//			if(fldPrms[i].pFld->getType()==WBField::WBF_32U)
+//			{
+//				ret &= fldPrms[i].pFld->convert(&u32val,true);
+//				ret &= setIntegerParam(i,u32val);
+//			}
+//			else
+//			{
+//				ret &= fldPrms[i].pFld->convert(&f32val,true);
+//				ret &= setDoubleParam(i,f32val);
+//			}
+//		}
+//	}
+//	return ret;
+//}
 
 

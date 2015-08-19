@@ -38,7 +38,7 @@ typedef void * X1052_BIDMA_HANDLE; //!< Hack to not include all the X1052 api in
 class EWBMemX1052Con: public EWBBridge {
 public:
 	EWBMemX1052Con(int idPCIe,uint32_t magic_addr=0xFFFFFFFF, uint32_t magic_val=-1);
-	virtual EWBMemX1052Con();
+	virtual ~EWBMemX1052Con();
 
 	bool isValid();
 

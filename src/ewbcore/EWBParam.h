@@ -12,6 +12,9 @@
 
 #include <string>
 
+class EWBField; //!< Forward declaration
+class EWBParamStr; //!< Forward declaration
+
 
 /**
  * Generic class that represent a parameter that need to
@@ -26,10 +29,14 @@ public:
 
 	//! Type Mask (Used by EWBField)
 	enum TMask {
+		EWBF_TM_SIGNESS		= 0x3,
+		EWBF_TM_SIGN_UNSIGNED	= 0x0,
 		EWBF_TM_SIGN_MSB		= 0x1,
 		EWBF_TM_SIGN_2COMP	= 0x2,
-		EWBF_TM_SIGNESS		= 0x3,
 		EWBF_TM_FIXED_POINT	= 0x4,
+		EWBF_TM_TYPENESS	= 0x3 << 6, //(0b11000000)
+		EWBF_TM_TYPE_FIELD	= 0x1 << 6,
+		EWBF_TM_TYPE_STRING = 0x2 << 6,
 	};
 
 	//! Type of EWBField available
@@ -37,27 +44,34 @@ public:
 		//! Automatic Type
 		EWBF_AUTO=0xFF,
 		//! Unsigned integer field
-		EWBF_32U=0,
-		//! Signed integer field
-		EWBF_32I=1,
+		EWBF_32U=(EWBF_TM_TYPE_FIELD | EWBF_TM_SIGN_UNSIGNED),
+		//! MSB Signed integer field
+		EWBF_32I=(EWBF_TM_TYPE_FIELD | EWBF_TM_SIGN_MSB),
+		//! 2'complements Signed integer
+		EWBF_32I2C=(EWBF_TM_TYPE_FIELD | EWBF_TM_SIGN_2COMP),
+
 		//! Fixed point field with highest bit signed
-		EWBF_32FP = (EWBF_TM_FIXED_POINT | EWBF_TM_SIGN_MSB),
+		EWBF_32FPU = (EWBF_TM_TYPE_FIELD | EWBF_TM_FIXED_POINT | EWBF_TM_SIGN_UNSIGNED),
+		//! Fixed point field with highest bit signed
+		EWBF_32FP = (EWBF_TM_TYPE_FIELD | EWBF_TM_FIXED_POINT | EWBF_TM_SIGN_MSB),
 		//! Fixed point field with 2'complements signed
-		EWBF_32F2C =(EWBF_TM_FIXED_POINT | EWBF_TM_SIGN_2COMP),
+		EWBF_32F2C =(EWBF_TM_TYPE_FIELD | EWBF_TM_FIXED_POINT | EWBF_TM_SIGN_2COMP),
+
 		//! String parameters
-		EWBF_STRING,
+		EWBF_STRING = EWBF_TM_TYPE_STRING,
 	};
 
 	const std::string& getName() const { return name; }		//!< Get the name
 	const char *getCName() const { return name.c_str(); } 	//!< Get the name in "C" format for printf function
 	const std::string& getDesc() const { return desc; }		//!< Get the description
 	uint8_t getType() const { return type; }				//!< Get the type of field
+	EWBField* castField() { return ((type&EWBF_TM_TYPENESS)==EWBF_TM_TYPE_FIELD)?(EWBField*)this:NULL; } //!< Cast to EWBField* if possible otherwise return NULL
+	EWBParamStr* castParamStr() { return ((type&EWBF_TM_TYPENESS)==EWBF_TM_TYPE_STRING)?(EWBParamStr*)this:NULL; } //!< Cast to EWBParamStr* if possible otherwise return NULL
 
 protected:
 	std::string name;	//!< Name of the EWBField
 	uint8_t type;		//!< Type of data
 	std::string desc;	//!< Description
-
 };
 
 

@@ -12,6 +12,7 @@
 #include "EWBBus.h"
 
 #include <map>
+#include <string>
 
 //Forward declaration to improve compilation
 class EWBBridge;

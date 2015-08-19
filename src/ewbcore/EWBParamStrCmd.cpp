@@ -7,7 +7,8 @@
 
 #include "EWBParamStrCmd.h"
 
-#include "../ewbbridge/EWBCmdConsole.h"
+#include "ewbbridge/EWBCmdConsole.h"
+
 #include <iostream>
 #include <string>
 

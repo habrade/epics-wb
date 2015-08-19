@@ -9,13 +9,15 @@
  */
 
 
-#ifndef ASYNWBORTDRVR_H_
-#define ASYNWBORTDRVR_H_
+#ifndef EWBASYNPORTDRVR_H_
+#define EWBASYNPORTDRVR_H_
 
 #include <string>
 #include <map>
 
-#include "WBNode.h"
+#include "EWBBus.h"
+#include "EWBParam.h"
+#include "EWBField.h"
 #include <asynPortDriver.h>
 
 //! Type of synchronization between the memory, Wishbone tree and Process variable
@@ -26,8 +28,8 @@ enum AsynWBSync {
 	AWB_SYNC_DERIVED,	//!< Sync must be performed on the children class.
 };
 
-struct AsynWBField {
-	WBField* pFld;
+struct EWBAsynPrm {
+	EWBParam* pPrm;
 	int syncmode;
 };
 
@@ -63,10 +65,10 @@ struct AsynStatusObj {
  *
  *  \ref AsynWBSync
  */
-class asynWBPortDrvr : public asynPortDriver {
+class EWBAsynPortDrvr : public asynPortDriver {
 public:
-	asynWBPortDrvr(const char *portName, int max_nprm);
-	virtual ~asynWBPortDrvr();
+	EWBAsynPortDrvr(const char *portName, int max_nprm);
+	virtual ~EWBAsynPortDrvr();
 	virtual asynStatus setup()=0;	//!< Need to be overriden
 
 	virtual asynStatus readInt32(asynUser *pasynUser, epicsInt32 *value);
@@ -81,17 +83,16 @@ public:
     bool isValid() { return pRoot!=NULL; } //!< return true if the child class has been properly setup()
 
 protected:
-    asynStatus syncPending(WBAccMode amode=WB_AM_RW);
-    asynStatus createParam(WBField *fld, int *index=NULL,int syncmode=AWB_SYNC_DEVICE);
-    asynStatus createParam(const char *name, WBField *fld, int *index=NULL, int syncmode=AWB_SYNC_DEVICE);
+    asynStatus syncPending(EWBSync::AMode amode=EWBSync::EWB_AM_RW);
+    asynStatus createParam(EWBField *fld, int *index=NULL,int syncmode=AWB_SYNC_DEVICE);
+    asynStatus createParam(const char *name, EWBParam *pPrm, int *index=NULL, int syncmode=AWB_SYNC_DEVICE);
     asynStatus createParam(const char *name, asynParamType type,int *index=NULL,int syncmode=AWB_SYNC_PRMLIST);
-    bool cvtWBNodetoPrmList(WBNode *node);
+    //bool cvtWBNodetoPrmList(WBNode *node);
     int getParamIndex(const char *name);
 
-    WBNode *pRoot;			//!< pointer on the WB tree structure.
-    WBMemCon* pMemCon;		//!< generic pointer on the memory connector.
+    EWBBus *pRoot;			//!< pointer on the WB root tree structure.
 
-    std::vector<AsynWBField> fldPrms;
+    std::vector<EWBAsynPrm> fldPrms;
 private:
     std::string driverName;
     int P_BlkSyncIdx, syncNow;

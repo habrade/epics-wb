@@ -5,10 +5,13 @@
  *      Author: Benoit Rat (benoit<AT>sevensols.com)
  */
 
-#include "EWBMemTestFileCon.h"
+#include "EWBBgdTestFile.h"
 #include <cstring>
 
-#include "awbpd_trace.h"
+#include <EWBTrace.h>
+#include <EWBPeriph.h>
+#include <EWBReg.h>
+#include <EWBBus.h>
 
 
 #define TRACE_P_VDEBUG(...) TRACE_P_DEBUG( __VA_ARGS__)
@@ -24,8 +27,8 @@
  * BUFF_MAX_SIZEB for both read and write.
  * It will also try to open the file.
  */
-WBMemTestFileCon::WBMemTestFileCon(const std::string& fname)
-: EWBMemCon(EWBMemCon::TFILE), fname(fname), lastpos(0)
+EWBMemTestFileCon::EWBMemTestFileCon(const std::string& fname)
+: EWBBridge(EWBBridge::TFILE), fname(fname), lastpos(0)
 {
 	o_file.open(fname.c_str(),std::fstream::out|std::fstream::in);
 	TRACE_P_INFO("tfile=%d (%s)",o_file.is_open(),fname.c_str());
@@ -39,7 +42,7 @@ WBMemTestFileCon::WBMemTestFileCon(const std::string& fname)
  * 	- Close the file
  * 	- Free the internal buffer
  */
-WBMemTestFileCon::~WBMemTestFileCon()
+EWBMemTestFileCon::~EWBMemTestFileCon()
 {
 	o_file.close();
 
@@ -50,11 +53,11 @@ WBMemTestFileCon::~WBMemTestFileCon()
 /**
  * Function that fill the file with the all the registers in the wishbone structure.
  */
-void EWBMemTestFileCon::generate(WBNode* node)
+void EWBMemTestFileCon::generate(EWBBus* pBus)
 {
-	WBReg *reg=NULL;
+	EWBReg *reg=NULL;
 	uint32_t data;
-	if(node==NULL) return;
+	if(pBus==NULL) return;
 
 	//If the file does not exist it can't be open as in|out (only out)...
 	if(o_file.is_open()==false)
@@ -65,16 +68,22 @@ void EWBMemTestFileCon::generate(WBNode* node)
 		o_file.open(fname.c_str(),std::fstream::out|std::fstream::in); //and reopen as in|out.
 	}
 
-	TRACE_P_DEBUG("%s (%d)",node->getCName(), node->getChildren().size());
-
-	while( (reg=node->getNextReg(reg)) != NULL)
+	std::vector<EWBPeriph *> periphs = pBus->getPeripherals();
+	for(size_t i=0;i<periphs.size();i++)
 	{
-		TRACE_P_VDEBUG("%s (@0x%08X) 0x%08x",reg->getCName(),reg->getOffset(true),reg->getData());
-		data=reg->getData();
-		mem_access(reg->getOffset(true),&data,true);
+		EWBPeriph *pPrh=periphs[i];
+		if(pPrh==NULL) continue;
+		TRACE_P_DEBUG("%d %s (0x%08x)",i,pPrh->getCName(), pPrh->getOffset(true));
+
+		while( (reg=pPrh->getNextReg(reg)) != NULL)
+		{
+			TRACE_P_VDEBUG("%s (@0x%08X) 0x%08x",reg->getCName(),reg->getOffset(true),reg->getData());
+			data=reg->getData();
+			mem_access(reg->getOffset(true),&data,true);
+		}
 	}
 
-	std::vector<WBNode *> children = node->getChildren();
+	std::vector<EWBBus *> children = pBus->getChildren();
 	for(size_t i=0;i<children.size();i++)
 		generate(children[i]);
 }
@@ -105,7 +114,7 @@ bool EWBMemTestFileCon::mem_access(uint32_t wb_addr, uint32_t* data, bool to_dev
 		else o_file.seekp(0,std::ios::end);
 
 		snprintf(buff,50,"0x%08X: %08x",wb_addr,*data);
-		TRACE_P_VDEBUG("%d  <=> '%s' (g=%ld, p=%ld)",pos, buff, o_file.tellg(), o_file.tellp());
+		TRACE_P_VDEBUG("%d  <=> '%s' (g=%ld, p=%ld)",pos, buff,(long int)o_file.tellg(), (long int)o_file.tellp());
 		o_file << buff << std::endl;
 	}
 	else //Reading from file

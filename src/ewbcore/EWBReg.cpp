@@ -11,6 +11,7 @@
 #include "EWBPeriph.h"
 #include "EWBTrace.h"
 
+#include "ewbbridge/EWBBridge.h"
 
 
 #include <iostream>

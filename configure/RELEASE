@@ -1,0 +1,21 @@
+# EPICS root directory
+EPICS_ROOT=/home/epicsmgr/EPICS
+
+# EPICS BASE
+EPICS_BASE=$(EPICS_ROOT)/base
+
+# asynchronous driver
+ASYN=$(EPICS_ROOT)/support/asyn
+
+
+#####  Bridges
+
+# Set the route of X1052/Jungo
+X1052 =  /usr/local/include/x1052
+JUNGOWDVER=1010
+JUNGOWD = /opt/windriver/${JUNGOWDVER}
+JUNGOWD_OFF=0
+
+# Set the route of etherbone
+ETHB = /usr/local/include/
+

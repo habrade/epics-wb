@@ -9,12 +9,13 @@
 #define EWBCMDCONSOLE_H_
 
 #include <EWBSync.h>
+#include <string>
 
 class EWBCmdConsole {
 public:
-	enum Type { UNKNOWN=-1, SERIAL, MEMVUART, ETHVUART };
+	enum CmdType { UNKNOWN=-1, SERIAL, MEMVUART, ETHVUART };
 
-	EWBCmdConsole(Type t): _type(t) {};
+	EWBCmdConsole(EWBCmdConsole::CmdType t): _type((int)t) {};
 	virtual ~EWBCmdConsole() {};
 
 	virtual void writeCmd(std::string cmd, std::string value)=0;
@@ -22,10 +23,10 @@ public:
 	virtual const std::string& getInfo() const =0;
 	virtual bool isValid() const =0;
 
-	Type getType() const { return _type; }
+	int getType() const { return _type; }
 
 protected:
-	Type _type;
+	int _type;
 };
 
 
@@ -38,20 +39,6 @@ class EWBSerialConsole: public EWBCmdConsole {
 };
 
 
-/**
- * Class that wrap the EWBCmdConsole class to improve parsing of WR consoles
- */
-class EWBWRConsole: public EWBCmdConsole {
-	EWBWRConsole(EWBCmdConsole *term, int rgui_ms);
-	virtual ~EWBWRConsole();
 
-	void writeCmd(std::string cmd, std::string value) { term->writeCmd(cmd,value); }
-	std::string getCmd(std::string cmd);
-	const std::string& getInfo() const { return term->getInfo(); }
-	Type getType() const { return term->getType(); }
-
-private:
-	EWBCmdConsole *term; //!< This is the real terminal
-};
 
 #endif /* EWBCMDCONSOLE_H_ */

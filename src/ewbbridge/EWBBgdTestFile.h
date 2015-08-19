@@ -10,11 +10,13 @@
 #ifndef EWBMEMTFILECON_H_
 #define EWBMEMTFILECON_H_
 
-#include EWBNode.h"
+#include "EWBBridge.h"
 
 #include <iostream>
 #include <fstream>
 #include <string>
+
+class EWBBus; //!< Forward declaration
 
 /**
  * Fake EWB memory connector by testing on a file
@@ -33,12 +35,12 @@
  * \endcode
  *
  */
-class EWBMemTestFileCon: public EWBMemCon {
+class EWBMemTestFileCon: public EWBBridge {
 public:
-	WBMemTestFileCon(const std::string& fname);
-	virtual EWBMemTestFileCon();
+	EWBMemTestFileCon(const std::string& fname);
+	virtual ~EWBMemTestFileCon();
 
-	void generate(WBNode* node);
+	void generate(EWBBus* root);
 
 	virtual bool isValid() { return o_file.is_open(); }				//!< Return true if the file has been opened
 	bool mem_access(uint32_t addr, uint32_t *data, bool from_dev);

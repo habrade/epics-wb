@@ -11,6 +11,8 @@
 #include "EWBPeriph.h"
 #include "EWBTrace.h"
 
+#include "ewbbridge/EWBBridge.h"
+
 #include <iostream>
 #include <cmath>
 #include <string>
@@ -18,6 +20,15 @@
 #include <cstdarg>
 #include <ctype.h>
 #include <limits>
+
+#ifdef vxWorks
+template<typename T>
+inline bool isinf(T value)
+{
+return std::numeric_limits<T>::has_infinity &&
+value == std::numeric_limits<T>::infinity();
+}
+#endif
 
 
 #define TRACE_P_VDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
@@ -44,7 +55,7 @@ EWBField::EWBField(EWBReg *pReg,
 		const std::string &name, uint8_t width,
 		uint8_t shift, uint8_t mode, const std::string &desc,
 		uint8_t signess, uint8_t nfb, int index, double iniVal):
-		EWBParam(name,0,mode,desc)
+		EWBParam(name,EWBF_TM_TYPE_FIELD,mode,desc)
 
 {
 	if((width+shift)>32) TRACE_P_WARNING("width (%d) + shift (%d) <= 32 bits",width,shift);
@@ -61,7 +72,7 @@ EWBField::EWBField(EWBReg *pReg,
 	this->pReg=pReg;
 	this->width=width;
 	this->shift=shift;
-	this->type=(signess & EWBF_TM_SIGNESS);
+	this->type |=(signess & EWBF_TM_SIGNESS);
 	if(nfb>0) this->type|=EWBF_TM_FIXED_POINT;
 	this->nfb=nfb;
 	this->forceSync=false;
@@ -119,11 +130,11 @@ void EWBField::getLimit(float &fmin, float &fmax)
 		fmin=-((float)(1ULL<<(width-1))-1);
 		fmax=(float)(1ULL<<(width-1))-1;
 		break;
-	case EWBF_TM_SIGN_2COMP:	//2C Signed Integer
+	case EWBF_32I2C:	//2C Signed Integer
 		fmin=-(float)(1ULL<<(width-1));
 		fmax=(float)(1ULL<<(width-1))-1;
 		break;
-	case EWBF_TM_FIXED_POINT: 	//Unsigned Fixed Point (0x4)
+	case EWBF_32FPU: 	//Unsigned Fixed Point
 		fmin=0;
 		fmax=(float)(1ULL<<(width-nfb));
 		fmax-=1.f/(1ULL<<nfb);
@@ -240,7 +251,7 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;
-	case EWBF_TM_SIGN_2COMP:
+	case EWBF_32I2C:
 		if(to_value)
 		{
 			ret=this->regCvt(&fixed,reg_data,to_value);
@@ -259,7 +270,7 @@ bool EWBField::regCvt(float *value, uint32_t *reg_data, bool to_value) const
 			ret=this->regCvt(&fixed,reg_data,to_value);
 		}
 		break;
-	case EWBF_TM_FIXED_POINT: //Unsigned Fixed point conversion
+	case EWBF_32FPU: //Unsigned Fixed point conversion
 		if(to_value)
 		{
 			ret=this->regCvt(&fixed,reg_data,to_value);
@@ -357,6 +368,7 @@ bool EWBField::convert(float *pVal, bool to_value)
 bool EWBField::setToSync()
 {
 	TRACE_CHECK_PTR(pReg,false);
+	this->toSync=true;
 	pReg->toSync=true;
 	return true;
 }

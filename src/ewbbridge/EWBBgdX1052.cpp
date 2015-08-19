@@ -4,21 +4,19 @@
  *  Created on: Oct 31, 2013
  *      Author: Benoit Rat (benoit<AT>sevensols.com)
  */
-#include "awbpd_trace.h"
-
 #ifndef EWBPD_NO_X1052
 
-#define TRACE_H
-#include <x1052_api.h>
+#define TRACE_H 1 //TODO: Should be removed from <x1052_api.h>
 #include <wdc_lib.h>
+#include <x1052_api.h>
 
 //TODO: Quick fix
 #ifndef BOOL
 #define BOOL int
 #endif
 
-#include EWBMemX1052Con.h"
-
+#include "EWBBgdX1052.h"
+#include "EWBTrace.h"
 
 #define TRACE_P_VDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
 #define TRACE_P_VVDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
@@ -34,8 +32,8 @@ int EWBMemX1052Con::nHandles = -1; //!< Initiate static nHandles to count number
  *
  * \param[in] idxPCIe The index of PCIe slot for X1052 Devices
  */
-WBMemX1052Con::WBMemX1052Con(int idxPCIe,uint32_t magic_addr, uint32_t magic_val)
-: EWBMemCon(WBMemCon::X1052,"X1052"), hBiDma(NULL), hDev(NULL)
+EWBMemX1052Con::EWBMemX1052Con(int idxPCIe,uint32_t magic_addr, uint32_t magic_val)
+:EWBBridge(EWBBridge::X1052,"X1052"), hDev(NULL), hBiDma(NULL)
 {
 	uint32_t dwStatus, tmp;
 	if(nHandles<0)
@@ -70,7 +68,7 @@ WBMemX1052Con::WBMemX1052Con(int idxPCIe,uint32_t magic_addr, uint32_t magic_val
 	/* Find and open a X1052 device (by default ID) */
 	hDev = X1052_DeviceOpen(idxPCIe);
 	if(hDev) nHandles++;
-	TRACE_P_INFO("Slot Index #%d : hDev=0x%x (nHandles=%d)",idxPCIe,hDev,nHandles);
+	TRACE_P_INFO("Slot Index #%d : hDev=0x%x (nHandles=%d)",idxPCIe,(uint32_t)hDev,nHandles);
 
 	hBiDma= X1052_BiDMAGetHandle(hDev);
 
@@ -102,7 +100,7 @@ WBMemX1052Con::WBMemX1052Con(int idxPCIe,uint32_t magic_addr, uint32_t magic_val
  *
  * It will close the handler on the PCIe device.
  */
-WBMemX1052Con::~WBMemX1052Con()
+EWBMemX1052Con::~EWBMemX1052Con()
 {
 	uint32_t dwStatus;
 	if(hDev)
@@ -134,19 +132,19 @@ bool EWBMemX1052Con::isValid()
 /**
  * Single 32bit access to the wishbone device (seen as a memory map)
  *
- * \param[in] wb_addr The address of the data we want to access.
+ * \param[in] addr The address of the data we want to access.
  * \param[inout] data the read "read from/write to" the device.
  * \param[in] to_dev if true we write to the device.
  * \see X1052_Wishbone_CSR() function
  */
-bool EWBMemX1052Con::mem_access(uint32_t wb_addr, uint32_t* data, bool to_dev)
+bool EWBMemX1052Con::mem_access(uint32_t addr, uint32_t* data, bool to_dev)
 {
 	int status;
 	TRACE_CHECK_PTR(hDev,false);
 
-	status=X1052_Wishbone_CSR(hDev,wb_addr,data,(int)to_dev);
-	TRACE_CHECK_VA(status==S_OK,false,"%s@%08X %s %08x (%d)",(to_dev)?"W":"R", wb_addr,(to_dev)?"=>":"<=",*data,status);
-	TRACE_P_VDEBUG("%s@%08X %s %08x (%d)",(to_dev)?"W":"R", wb_addr,(to_dev)?"=>":"<=",*data,status);
+	status=X1052_Wishbone_CSR(hDev,addr,data,(int)to_dev);
+	TRACE_CHECK_VA(status==S_OK,false,"%s@%08X %s %08x (%d)",(to_dev)?"W":"R", addr,(to_dev)?"=>":"<=",*data,status);
+	TRACE_P_VDEBUG("%s@%08X %s %08x (%d)",(to_dev)?"W":"R", addr,(to_dev)?"=>":"<=",*data,status);
 
 	return (status==S_OK);
 }
