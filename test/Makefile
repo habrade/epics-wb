@@ -56,10 +56,10 @@ GTEST_SRCS_ = $(GTEST_DIR)/src/*.cc $(GTEST_DIR)/src/*.h $(GTEST_HEADERS)
 
 all: ewb_test
 	
-main: ../src/output/libewbmain.a $(TESTS_MAIN) 
+main: ../src/output/libewbcore.a $(TESTS_MAIN) 
 
 
-../src/output/libewbmain.a: 
+../src/output/libewbcore.a: 
 	make -C $(ODIR)
 
 
@@ -87,7 +87,7 @@ gtest_main.a : gtest-all.o gtest_main.o
 	${CC} $(CPPFLAGS) $(CXXFLAGS) $(INCLUDE_DIR) -c $*.cpp -o $@
 
 #Final app
-ewb_test: ewb_test.o EWBFakeWRConsole.o $(OBJ_MAIN) ../src/output/libewbmain.a gtest_main.a 
+ewb_test: ewb_test.o EWBFakeWRConsole.o $(OBJ_MAIN) ../src/output/libewbcore.a gtest_main.a 
 	${CC} $(CPPFLAGS) $(CXXFLAGS) $(LFLAGS) $^ -o $@
 	
 clean:

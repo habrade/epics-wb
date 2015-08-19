@@ -1,0 +1,20 @@
+# EPICS Support
+SUPPORT=/opt/EPICS
+
+# EPICS BASE
+EPICS_BASE=$(SUPPORT)/base
+
+# asynchronous driver
+ASYN=$(SUPPORT)/asyn
+
+
+#####  Bridges
+
+# Set the route of X1052/Jungo
+X1052 =  /usr/local/include/x1052
+JUNGOWDVER=1010
+JUNGOWD = /opt/windriver/${JUNGOWDVER}
+
+# Set the route of etherbone
+ETHB = /usr/local/include/
+

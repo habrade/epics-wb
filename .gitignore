@@ -60,7 +60,7 @@ configure/
 doc/html
 doc/latex
 doc/man
-
+*.depends
 
 
 
