@@ -178,22 +178,22 @@ class EWBTrace {
     private:
         EWBTrace() {};                   // Forbidden Constructor
 
-#if __cplusplus <= 199711L
-        // C++ 11
-        // =======
-        // We can use the better technique of deleting the methods
-        // we don't want.
-        EWBTrace(EWBTrace const&)               = delete;
-        void operator=(EWBTrace const&)  = delete;
-#else
-        // C++ 03
-        // ========
-        // Dont forget to declare these two. You want to make sure they
-        // are unacceptable otherwise you may accidentally get copies of
-        // your singleton appearing.
-        EWBTrace(EWBTrace const&);              // Don't Implement
-        void operator=(EWBTrace const&); // Don't implement
-#endif
+//#if __cplusplus <= 199711L
+//        // C++ 11
+//        // =======
+//        // We can use the better technique of deleting the methods
+//        // we don't want.
+//        EWBTrace(EWBTrace const&)               = delete;
+//        void operator=(EWBTrace const&)  = delete;
+//#else
+//        // C++ 03
+//        // ========
+//        // Dont forget to declare these two. You want to make sure they
+//        // are unacceptable otherwise you may accidentally get copies of
+//        // your singleton appearing.
+//        EWBTrace(EWBTrace const&);              // Don't Implement
+//        void operator=(EWBTrace const&); // Don't implement
+//#endif
 
 };
 
