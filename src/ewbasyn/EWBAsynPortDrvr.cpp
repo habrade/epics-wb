@@ -181,11 +181,21 @@ asynStatus EWBAsynPortDrvr::createParam(const char* name, EWBParam* pPrm,int *pI
 	{
 		pIndex=(pIndex)?pIndex:&tmp;
 		if(pPrm->getType() == EWBParam::EWBF_STRING)
+		{
 			type=asynParamOctet;
-		else if(pPrm->getType() && EWBParam::EWBF_TM_FIXED_POINT)
-			type=asynParamFloat64;
+		}
+		else if(pPrm->getType() & EWBParam::EWBF_TM_TYPE_FIELD)
+		{
+			if(pPrm->getType() & EWBParam::EWBF_TM_FIXED_POINT)
+				type=asynParamFloat64;
+			else
+				type=asynParamInt32;
+		}
 		else
-			type=asynParamInt32;
+		{
+			TRACE_P_WARNING("Unknown type 0x%x for Param %s (pv:%s)",pPrm->getType(), pPrm->getCName(), name);
+			return asynError;
+		}
 
 		//if(list==1) list=0;
 
@@ -197,7 +207,7 @@ asynStatus EWBAsynPortDrvr::createParam(const char* name, EWBParam* pPrm,int *pI
 			if(pPrm->getType() == EWBParam::EWBF_STRING) {
 				//setStringParam(*pIndex,((EWBParamStr*)pPrm)->getCValue());
 				}
-			else if(pPrm->getType() && EWBParam::EWBF_TM_FIXED_POINT)
+			else if(pPrm->getType() & EWBParam::EWBF_TM_FIXED_POINT)
 				setDoubleParam(*pIndex,((EWBField*)pPrm)->getFloat());
 			else
 				setIntegerParam(*pIndex,((EWBField*)pPrm)->getU32());
@@ -311,12 +321,12 @@ asynStatus EWBAsynPortDrvr::readInt32(asynUser* pasynUser, epicsInt32* value)
 			//Convert the WBField to a float
 			pFld->convert(&u32val,true);
 			*value=(epicsInt32)u32val;
-		}
 
-		TRACE_P_VVDEBUG("@0x%08X %s.%s : 0x%08x (val=%d)",
-				aWF.pPrm->getReg()->getOffset(true),
-				aWF.pPrm->getReg()->getCName(),aWF.pPrm->getCName(),
-				aWF.pPrm->getReg()->getData(),*value);
+			TRACE_P_VVDEBUG("@0x%08X %s.%s : 0x%08x (val=%d)",
+					pFld->getReg()->getOffset(true),
+					pFld->getReg()->getCName(),pFld->getCName(),
+					pFld->getReg()->getData(),*value);
+		}
 
 		//And set value to the parameters list
 		status = (asynStatus) setIntegerParam(function,*value);
@@ -388,12 +398,12 @@ asynStatus EWBAsynPortDrvr::readFloat64(asynUser* pasynUser,
 			//Convert the WBField to a float
 			pFld->convert(&f32val,true);
 			*value=(epicsFloat64)f32val;
-		}
 
-		TRACE_P_VVDEBUG("@0x%08X %s.%s : 0x%08x (val=%f)",
-				aWF.pPrm->getReg()->getOffset(true),
-				aWF.pPrm->getReg()->getCName(),aWF.pPrm->getCName(),
-				aWF.pPrm->getReg()->getData(),f32val);
+			TRACE_P_VVDEBUG("@0x%08X %s.%s : 0x%08x (val=%f)",
+					pFld->getReg()->getOffset(true),
+					pFld->getReg()->getCName(),pFld->getCName(),
+					pFld->getReg()->getData(),f32val);
+		}
 
 		//And set value to the parameters list
 		status = (asynStatus) setDoubleParam(function,*value);
@@ -456,12 +466,14 @@ asynStatus EWBAsynPortDrvr::writeInt32(asynUser* pasynUser, epicsInt32 value)
 		uint32_t u32val=value;
 
 		if((pFld=aWF.pPrm->castField())!=NULL)
+		{
 			pFld->convert(&u32val,false);
 
-		TRACE_P_VVDEBUG("@0x%08X %s.%s : %08x",
-				aWF.pPrm->getReg()->getOffset(true),
-				aWF.pPrm->getReg()->getCName(),aWF.pPrm->getCName(),
-				aWF.pPrm->getReg()->getData());
+			TRACE_P_VVDEBUG("@0x%08X %s.%s : %08x",
+					pFld->getReg()->getOffset(true),
+					pFld->getReg()->getCName(),pFld->getCName(),
+					pFld->getReg()->getData());
+		}
 
 		//Finally sync WBField using the connector to memory
 		if(syncNow & EWBSync::EWB_AM_W)
@@ -471,10 +483,13 @@ asynStatus EWBAsynPortDrvr::writeInt32(asynUser* pasynUser, epicsInt32 value)
 		}
 		else aWF.pPrm->setToSync();
 
-		TRACE_P_VVDEBUG("===>>>>>>>>>>>>>>@0x%08X %s.%s : %08x",
-				aWF.pPrm->getReg()->getOffset(true),
-				aWF.pPrm->getReg()->getCName(),aWF.pPrm->getCName(),
-				aWF.pPrm->getReg()->getData());
+		if(pFld)
+		{
+			TRACE_P_VVDEBUG("===>>>>>>>>>>>>>>@0x%08X %s.%s : %08x",
+					pFld->getReg()->getOffset(true),
+					pFld->getReg()->getCName(),pFld->getCName(),
+					pFld->getReg()->getData());
+		}
 	}
 	else if(function==P_BlkSyncIdx)
 	{
@@ -662,36 +677,41 @@ asynStatus EWBAsynPortDrvr::readOctet(asynUser *pasynUser, char *value, size_t m
 
 
 
-//bool EWBAsynPortDrvr::cvtWBNodetoPrmList(WBNode *node)
-//{
-//	WBReg *reg=NULL;
-//	uint32_t u32val;
-//	float f32val;
-//	bool ret=true;
-//
-//	TRACE_CHECK_PTR(node,false);
-//
-//	for(size_t i=0;i<fldPrms.size();i++)
-//	{
-//		if(fldPrms[i].pFld==NULL) continue;
-//
-//		while((reg=node->getNextReg(reg))!=NULL)
-//		{
-//			if(reg!=fldPrms[i].pFld->getReg()) continue;
-//
-//			if(fldPrms[i].pFld->getType()==WBField::WBF_32U)
-//			{
-//				ret &= fldPrms[i].pFld->convert(&u32val,true);
-//				ret &= setIntegerParam(i,u32val);
-//			}
-//			else
-//			{
-//				ret &= fldPrms[i].pFld->convert(&f32val,true);
-//				ret &= setDoubleParam(i,f32val);
-//			}
-//		}
-//	}
-//	return ret;
-//}
+bool EWBAsynPortDrvr::setParams(EWBPeriph *pPrh)
+{
+	EWBReg *reg=NULL;
+	EWBField *pFld=NULL;
+	uint32_t u32val;
+	float f32val;
+	bool ret=true;
+
+	TRACE_CHECK_PTR(pPrh,false);
+
+	for(size_t i=0;i<fldPrms.size();i++)
+	{
+
+		if(fldPrms[i].pPrm==NULL) continue;
+		pFld=fldPrms[i].pPrm->castField();
+		if(pFld==NULL) continue;
+
+		while((reg=pPrh->getNextReg(reg))!=NULL)
+		{
+
+			if(reg!=pFld->getReg()) continue;
+
+			if(pFld->getType() & EWBParam::EWBF_TM_FIXED_POINT)
+			{
+				ret &= pFld->convert(&f32val,true);
+				ret &= setDoubleParam(i,f32val);
+			}
+			else
+			{
+				ret &= pFld->convert(&u32val,true);
+				ret &= setIntegerParam(i,u32val);
+			}
+		}
+	}
+	return ret;
+}
 
 

@@ -87,7 +87,8 @@ protected:
     asynStatus createParam(EWBField *fld, int *index=NULL,int syncmode=AWB_SYNC_DEVICE);
     asynStatus createParam(const char *name, EWBParam *pPrm, int *index=NULL, int syncmode=AWB_SYNC_DEVICE);
     asynStatus createParam(const char *name, asynParamType type,int *index=NULL,int syncmode=AWB_SYNC_PRMLIST);
-    //bool cvtWBNodetoPrmList(WBNode *node);
+
+    bool setParams(EWBPeriph *pPrh);
     int getParamIndex(const char *name);
 
     EWBBus *pRoot;			//!< pointer on the WB root tree structure.

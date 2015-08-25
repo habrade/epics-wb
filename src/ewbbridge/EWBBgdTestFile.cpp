@@ -14,7 +14,7 @@
 #include <EWBBus.h>
 
 
-#define TRACE_P_VDEBUG(...) TRACE_P_DEBUG( __VA_ARGS__)
+#define TRACE_P_VDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
 #define TRACE_P_VVDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
 
 #define BUFF_MAX_SIZEB 4096 //Size in bytes

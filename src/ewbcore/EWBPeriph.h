@@ -20,7 +20,14 @@ class EWBReg;
 
 #define EWB_NODE_MEMBCK_OWNADDR 0xFFFFFFFF //!< Used by WBNode::sync()
 
-#define WB2_PRH_ARGS(pname,offset) \
+#define WB2_PRH_ARGS(pname) \
+	WB2_##pname##_PERIPH_PREFIX, \
+	WB2_##pname##_PERIPH_OFFSET, \
+	WB2_##pname##_PERIPH_VENID, \
+	WB2_##pname##_PERIPH_DEVID, \
+	WB2_##pname##_PERIPH_DESC
+
+#define WB2_PRH_ARGS_OFFSET(pname,offset) \
 	WB2_##pname##_PERIPH_PREFIX, \
 	offset, \
 	WB2_##pname##_PERIPH_VENID, \
@@ -44,8 +51,8 @@ public:
 	EWBReg* getLastReg() const { return (registers.size()>0)?registers.rbegin()->second:NULL; }	//!< Get the highest WBReg in the node.
 
 	bool sync(EWBSync::AMode amode=EWB_AM_RW);
-//	bool sync(EWBSync::AMode amode, uint32_t dma_dev_offset=WB_NODE_MEMBCK_OWNADDR);
-//	bool sync(uint32_t* pData32, uint32_t length, EWBSync::AMode amode, uint32_t doffset=0);
+	bool sync(EWBSync::AMode amode, uint32_t dma_dev_offset=EWB_NODE_MEMBCK_OWNADDR);
+	bool sync(uint32_t* pData32, uint32_t length, EWBSync::AMode amode, uint32_t doffset=0);
 
 	bool isValid(int level=-1) const { return (level!=0)?(bus && bus->isValid(level-1)):bus!=NULL; } 	//!< Return true when all pointers are defined
 	bool isID(uint64_t venID, uint32_t devID) const { return (venID==this->venID && devID==this->devID); }

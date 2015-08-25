@@ -7,4 +7,4 @@
 
 #include "EWBParam.h"
 
-
+//For the moment the object will be empty.

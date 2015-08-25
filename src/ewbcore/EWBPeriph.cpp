@@ -11,6 +11,7 @@
 #include "EWBField.h"
 #include "EWBReg.h"
 #include "EWBBus.h"
+#include "EWBBridge.h"
 
 
 #include <string>
@@ -19,6 +20,9 @@
 
 int EWBPeriph::sCount=0;
 
+
+#define TRACE_P_VDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
+#define TRACE_P_VVDEBUG(...) //TRACE_P_DEBUG( __VA_ARGS__)
 
 /**
  * Constructor for a EWBPeriph
@@ -157,146 +161,148 @@ bool EWBPeriph::sync(EWBSync::AMode amode) {
 	return ret;
 }
 
-///**
-// * Sync EWBPeriph using DMA buffer
-// *
-// * To write/read in a fast way we can use the DMA memory connection.
-// *   - In write mode: we fill all our EWBPeriph structure into a buffer that is
-// *   send to the device at a specified offset.
-// *   - In read mode: we get a specific piece of memory using DMA and we then
-// *   extract the value from the buffer to the EWBPeriph structure
-// *
-// * \param[in] con   An abstract class to connect to the memory.
-// * \param[in] amode The operation mode (R,W,RW)
-// * \param[in] dma_dev_offset The position on the device where we are going to
-// *   perform the R/W. By setting EWB_NODE_DMA_OWNADDR, the address define for
-// *   the node is used.
-// * \return true if everything ok, false otherwise.
-// *
-// */
-//bool EWBPeriph::sync(EWBSync::AMode amode, uint32_t dma_dev_offset)
-//{
-//	bool ret=true;
-//	uint32_t *pData32, prh_bsize, ker_bsize;
-//	TRACE_CHECK_PTR(con,false);
-//	if(dma_dev_offset==EWB_NODE_MEMBCK_OWNADDR) dma_dev_offset=offset;
-//
-//	//Check if the latest register has the latest size.
-//	prh_bsize=getLastReg()->getOffset()+4;
-//
-//	TRACE_P_DEBUG("%s 0x%08X + [0x0,0x%X] (DMA sync)",getCName(),dma_dev_offset,getLastReg()->getOffset());
-//
-//	//first write to dev
-//	if(amode & EWB_AM_W)
-//	{
-//		//Get the internal to_dev buffer
-//		ker_bsize=con->get_block_buffer(&pData32,true);
-//		if(prh_bsize>ker_bsize) return false;
-//
-//		//Fill it with the data of all registers
-//		for(std::map<uint32_t,EWBReg*>::iterator ii=registers.begin(); ii!=registers.end(); ++ii)
-//		{
-//			pData32[(*ii).first/sizeof(uint32_t)]=((*ii).second)->getData();
-//		}
-//
-//		//send it to the device
-//		ret &= con->mem_block_access(dma_dev_offset,prh_bsize,true); //Write buffer to dev
-//	}
-//
-//	//then read from dev
-//	if(amode & EWB_AM_R)
-//	{
-//		//fill the user space buffer from the memory device
-//		ret &= con->mem_block_access(dma_dev_offset,prh_bsize,false); //Read buffer from dev
-//
-//		//Get the internal from_dev kernel buffer
-//		ker_bsize=con->get_block_buffer(&pData32,false);
-//		TRACE_CHECK_VA(prh_bsize<=ker_bsize,false,"size of periph is %d bytes (max=%d)",prh_bsize,ker_bsize);
-//
-//		//Extract each value to the corresponding register
-//		for(std::map<uint32_t,EWBReg*>::iterator ii=registers.begin(); ii!=registers.end(); ++ii)
-//		{
-//			((*ii).second)->data=pData32[(*ii).first/sizeof(uint32_t)];
-//			TRACE_P_VDEBUG("%20s @0x%08X (%02d) <= 0x%x",((*ii).second)->getCName(),
-//					((*ii).second)->getOffset(true),(*ii).first/sizeof(uint32_t),
-//					((*ii).second)->getData());
-//		}
-//
-//	}
-//	return ret;
-//}
-///**
-// * Sync EWBPeriph using internal memory
-// *
-// * This method is similar as EWBPeriph::sync(EWBMemCon,EWBSync::AMode,uint32_t) method
-// * except that here have direct access to the internal/kernel buffer that is going
-// * to be used with the EWBMemCon.
-// *
-// * If we want to partially sync the memory with our EWBPeriph this is the method
-// * to use. For example if we want to read only the the words (32bits) 0x10 to 0x16
-// * from the internal buffer to our EWBPeriph we should perform the following:
-// *
-// * <code>
-// * uint32_t *pData32, r_bsize;
-// * //First setup the internal buffer from the device
-// * pCon->mem_block_access(pNode->getAddress(),pNode->getLastReg()->getOffset()/sizeof(uint32_t),false);
-// * r_bsize=pCon->get_block_buffer(&pData32,false);
-// * //Then read from the internal buffer to the EWBPeriph only words [0x10-0x16]
-// * pNode->sync(pData32,0x6,EWB_AM_R,0x10);
-// * </code>
-// *
-// * \param[in] pData32  Pointer on an internal buffer.
-// * \param[in] bsize    Size of the buffer that we want to R/W in bytes
-// * \param[in] amode    The operation mode (R,W,RW)
-// * \param[in] doffset  Offset on the data buffer and its correspondence in registers of EWBPeriph (bytes).
-// * \return true if everything ok, false otherwise.
-// *
-// */
-//bool EWBPeriph::sync(uint32_t* pData32, uint32_t bsize, EWBSync::AMode amode,  uint32_t doffset)
-//{
-//	bool ret=true;
-//	uint32_t prh_bsize;
-//	TRACE_CHECK_PTR(pData32,false);
-//
-//	//Check if the latest register has the latest size.
-//	prh_bsize=getLastReg()->getOffset()+4;
-//	bsize=std::min(prh_bsize-doffset,bsize);
-//	TRACE_CHECK_VA((doffset+4)<=prh_bsize,false,
-//			"Size overflow: offset=%d+4 > prh_bsize=%d",
-//			doffset,prh_bsize);
-//
-//	TRACE_P_DEBUG("%s 0x%08X + [0x%x,0x%X] (DataBuff)",getCName(),(uint32_t)pData32,doffset,doffset+bsize);
-//
-//	//first write to buffer
-//	if(amode & EWB_AM_W)
-//	{
-//		//Fill it with the data of all registers
-//		for(std::map<uint32_t,EWBReg*>::iterator ii=registers.begin(); ii!=registers.end(); ++ii)
-//		{
-//			if(doffset <= (*ii).first && (*ii).first <= doffset+bsize)
-//				pData32[(*ii).first/sizeof(uint32_t)]=((*ii).second)->getData();
-//		}
-//	}
-//
-//	//then read from buffer
-//	if(amode & EWB_AM_R)
-//	{
-//
-//		//Extract each value to the corresponding register
-//		for(std::map<uint32_t,EWBReg*>::iterator ii=registers.begin(); ii!=registers.end(); ++ii)
-//		{
-//			if(doffset <= (*ii).first && (*ii).first <= doffset+bsize)
-//			{
-//				((*ii).second)->data=pData32[(*ii).first/sizeof(uint32_t)];
-//				TRACE_P_VDEBUG("%20s @0x%08X (%02d) <= 0x%x",((*ii).second)->getCName(),
-//						((*ii).second)->getOffset(true),(*ii).first/sizeof(uint32_t),
-//						((*ii).second)->getData());
-//			}
-//		}
-//
-//	}
-//	return ret;
-//}
+/**
+ * Sync EWBPeriph using DMA buffer
+ *
+ * To write/read in a fast way we can use the DMA memory connection.
+ *   - In write mode: we fill all our EWBPeriph structure into a buffer that is
+ *   send to the device at a specified offset.
+ *   - In read mode: we get a specific piece of memory using DMA and we then
+ *   extract the value from the buffer to the EWBPeriph structure
+ *
+ * \param[in] con   An abstract class to connect to the memory.
+ * \param[in] amode The operation mode (R,W,RW)
+ * \param[in] dma_dev_offset The position on the device where we are going to
+ *   perform the R/W. By setting EWB_NODE_DMA_OWNADDR, the address define for
+ *   the node is used.
+ * \return true if everything ok, false otherwise.
+ *
+ */
+bool EWBPeriph::sync(EWBSync::AMode amode, uint32_t dma_dev_offset)
+{
+	bool ret=true;
+	uint32_t *pData32, prh_bsize, ker_bsize;
+	TRACE_CHECK(isValid(),"isValid()",false);
+	if(dma_dev_offset==EWB_NODE_MEMBCK_OWNADDR) dma_dev_offset=this->getOffset(true);
+
+	//Check if the latest register has the latest size.
+	prh_bsize=getLastReg()->getOffset()+4;
+
+	TRACE_P_DEBUG("%s 0x%08X + [0x0,0x%X] (DMA sync)",getCName(),dma_dev_offset,getLastReg()->getOffset());
+	EWBBridge *pBgd=this->getBridge();
+
+	//first write to dev
+	if(amode & EWB_AM_W)
+	{
+		//Get the internal to_dev buffer
+		ker_bsize=pBgd->get_block_buffer(&pData32,true);
+		if(prh_bsize>ker_bsize) return false;
+
+		//Fill it with the data of all registers
+		for(std::map<uint32_t,EWBReg*>::iterator ii=registers.begin(); ii!=registers.end(); ++ii)
+		{
+			pData32[(*ii).first/sizeof(uint32_t)]=((*ii).second)->getData();
+		}
+
+		//send it to the device
+		ret &= pBgd->mem_block_access(dma_dev_offset,prh_bsize,true); //Write buffer to dev
+	}
+
+	//then read from dev
+	if(amode & EWB_AM_R)
+	{
+		//fill the user space buffer from the memory device
+		ret &= pBgd->mem_block_access(dma_dev_offset,prh_bsize,false); //Read buffer from dev
+
+		//Get the internal from_dev kernel buffer
+		ker_bsize=pBgd->get_block_buffer(&pData32,false);
+		TRACE_CHECK_VA(prh_bsize<=ker_bsize,false,"size of periph is %d bytes (max=%d)",prh_bsize,ker_bsize);
+
+		//Extract each value to the corresponding register
+		for(std::map<uint32_t,EWBReg*>::iterator ii=registers.begin(); ii!=registers.end(); ++ii)
+		{
+			((*ii).second)->data=pData32[(*ii).first/sizeof(uint32_t)];
+			TRACE_P_VDEBUG("%20s @0x%08X (%02d) <= 0x%x",((*ii).second)->getCName(),
+					((*ii).second)->getOffset(true),(*ii).first/sizeof(uint32_t),
+					((*ii).second)->getData());
+		}
+
+	}
+	return ret;
+}
+
+/**
+ * Sync EWBPeriph using internal memory
+ *
+ * This method is similar as EWBPeriph::sync(EWBMemCon,EWBSync::AMode,uint32_t) method
+ * except that here have direct access to the internal/kernel buffer that is going
+ * to be used with the EWBMemCon.
+ *
+ * If we want to partially sync the memory with our EWBPeriph this is the method
+ * to use. For example if we want to read only the the words (32bits) 0x10 to 0x16
+ * from the internal buffer to our EWBPeriph we should perform the following:
+ *
+ * <code>
+ * uint32_t *pData32, r_bsize;
+ * //First setup the internal buffer from the device
+ * pCon->mem_block_access(pNode->getAddress(),pNode->getLastReg()->getOffset()/sizeof(uint32_t),false);
+ * r_bsize=pCon->get_block_buffer(&pData32,false);
+ * //Then read from the internal buffer to the EWBPeriph only words [0x10-0x16]
+ * pNode->sync(pData32,0x6,EWB_AM_R,0x10);
+ * </code>
+ *
+ * \param[in] pData32  Pointer on an internal buffer.
+ * \param[in] bsize    Size of the buffer that we want to R/W in bytes
+ * \param[in] amode    The operation mode (R,W,RW)
+ * \param[in] doffset  Offset on the data buffer and its correspondence in registers of EWBPeriph (bytes).
+ * \return true if everything ok, false otherwise.
+ *
+ */
+bool EWBPeriph::sync(uint32_t* pData32, uint32_t bsize, EWBSync::AMode amode,  uint32_t doffset)
+{
+	bool ret=true;
+	uint32_t prh_bsize;
+	TRACE_CHECK_PTR(pData32,false);
+
+	//Check if the latest register has the latest size.
+	prh_bsize=getLastReg()->getOffset()+4;
+	bsize=std::min(prh_bsize-doffset,bsize);
+	TRACE_CHECK_VA((doffset+4)<=prh_bsize,false,
+			"Size overflow: offset=%d+4 > prh_bsize=%d",
+			doffset,prh_bsize);
+
+	TRACE_P_DEBUG("%s 0x%08X + [0x%x,0x%X] (DataBuff)",getCName(),(uint32_t)pData32,doffset,doffset+bsize);
+
+	//first write to buffer
+	if(amode & EWB_AM_W)
+	{
+		//Fill it with the data of all registers
+		for(std::map<uint32_t,EWBReg*>::iterator ii=registers.begin(); ii!=registers.end(); ++ii)
+		{
+			if(doffset <= (*ii).first && (*ii).first <= doffset+bsize)
+				pData32[(*ii).first/sizeof(uint32_t)]=((*ii).second)->getData();
+		}
+	}
+
+	//then read from buffer
+	if(amode & EWB_AM_R)
+	{
+
+		//Extract each value to the corresponding register
+		for(std::map<uint32_t,EWBReg*>::iterator ii=registers.begin(); ii!=registers.end(); ++ii)
+		{
+			if(doffset <= (*ii).first && (*ii).first <= doffset+bsize)
+			{
+				((*ii).second)->data=pData32[(*ii).first/sizeof(uint32_t)];
+				TRACE_P_VDEBUG("%20s @0x%08X (%02d) <= 0x%x",((*ii).second)->getCName(),
+						((*ii).second)->getOffset(true),(*ii).first/sizeof(uint32_t),
+						((*ii).second)->getData());
+			}
+		}
+
+	}
+	return ret;
+}
 
 
 /**
