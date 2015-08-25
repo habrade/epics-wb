@@ -613,7 +613,7 @@ asynStatus EWBAsynPortDrvr::writeOctet(asynUser *pasynUser, const char *value, s
 
 	// Fetch the parameter string name for possible use in debugging
 	getParamName(function, &paramName);
-	TRACE_P_DEBUG("#%02d %s => %.5f (%d)",function,paramName,value,aWF.syncmode);
+	TRACE_P_DEBUG("#%02d %s => %s (%d)",function,paramName,value,aWF.syncmode);
 
 	if(aWF.syncmode==AWB_SYNC_DERIVED) return asynDisabled;
 
